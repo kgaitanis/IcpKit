@@ -38,6 +38,7 @@ public enum ICPRemoteClientError: Error {
     case requestRejected(rejectCode: ICPRequestRejectCode?, rejectMessage: String?, error_code: String?)
     case malformedResponse
     case noResponseData
+    case missingRootKey
 }
 
 public struct ICPReadStateResponse {
@@ -63,13 +64,30 @@ public enum ICPRequestCertification {
 /// The HttpClient that takes care of encoding and serialising all requests
 public final class ICPRequestClient: Sendable {
     private let client: any HttpClient
+    public let network: ICPNetwork
     
     public init() {
         client = UrlSessionHttpClient()
+        network = .mainnet
     }
     
     public init(_ client: any HttpClient) {
         self.client = client
+        network = .mainnet
+    }
+    
+    public init(network: ICPNetwork) {
+        self.client = UrlSessionHttpClient()
+        self.network = network
+    }
+    
+    public init(network: ICPNetwork, client: any HttpClient) {
+        self.client = client
+        self.network = network
+    }
+    
+    public func withRootKey(_ rootKey: Data) -> ICPRequestClient {
+        ICPRequestClient(network: network.withRootKey(rootKey), client: client)
     }
     
     /// Makes a Query/Call Request to the given canister and returns the result.
@@ -106,7 +124,7 @@ public final class ICPRequestClient: Sendable {
     ///   - sender: The signer of the request. If not present, no signature will be attached to the request.
     /// - Returns: the requestId of the newly created request
     public func call(_ method: ICPMethod, effectiveCanister canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil) async throws -> Data {
-        let icpRequest = try await ICPRequest(.call(method), canister: canister, sender: sender)
+        let icpRequest = try await ICPRequest(.call(method), canister: canister, sender: sender, network: network)
         _ = try await fetchCbor(icpRequest, canister: canister)
         return icpRequest.requestId
     }
@@ -141,7 +159,7 @@ public final class ICPRequestClient: Sendable {
     /// - Returns: The response of the query
     // TODO: return [CandidValue]
     public func query(_ method: ICPMethod, effectiveCanister canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil) async throws -> [CandidValue] {
-        let icpRequest = try await ICPRequest(.query(method), canister: canister, sender: sender)
+        let icpRequest = try await ICPRequest(.query(method), canister: canister, sender: sender, network: network)
         guard let cborEncodedResponse = try await fetchCbor(icpRequest, canister: canister) else {
             throw ICPRemoteClientError.noResponseData
         }
@@ -156,12 +174,36 @@ public final class ICPRequestClient: Sendable {
     ///   - sender: The signer of the request. If not present, no signature will be attached to the request.
     /// - Returns: The ReadState response
     public func readState(paths: [ICPStateTreePath], effectiveCanister canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil) async throws -> ICPReadStateResponse {
-        let icpRequest = try await ICPRequest(.readState(paths: paths), canister: canister, sender: sender)
+        let icpRequest = try await ICPRequest(.readState(paths: paths), canister: canister, sender: sender, network: network)
         guard let cborEncodedResponse = try await fetchCbor(icpRequest, canister: canister) else {
             throw ICPRemoteClientError.noResponseData
         }
-        let parsedResponse = try parseReadStateResponse(cborEncodedResponse, paths)
+        let parsedResponse = try parseReadStateResponse(cborEncodedResponse, paths, rootKey: network.rootKey, verifySignature: network.verifyCertificates)
         return parsedResponse
+    }
+    
+    /// Fetches and returns the root key from the network's status endpoint.
+    /// This is required for certificate validation when using a local replica.
+    public func fetchRootKey() async throws -> Data {
+        let request = HttpRequest(
+            method: "GET",
+            url: network.statusURL,
+            body: nil,
+            headers: [:],
+            timeout: 30)
+        let response = try await client.fetch(request)
+        guard response.statusCode == 200 else {
+            let errorString = String(data: response.data ?? Data(), encoding: .utf8)
+            throw ICPRemoteClientError.failed(statusCode: response.statusCode, error: errorString)
+        }
+        guard let data = response.data else {
+            throw ICPRemoteClientError.noResponseData
+        }
+        let status = try ICPCryptography.CBOR.deserialise(StatusResponseDecodable.self, from: data)
+        guard let rootKey = status.root_key else {
+            throw ICPRemoteClientError.missingRootKey
+        }
+        return rootKey
     }
     
     /// Will poll the canister every `waitDuration` for the response of the request with the given requestId until we
@@ -258,11 +300,14 @@ public final class ICPRequestClient: Sendable {
         return .null
     }
     
-    private func parseReadStateResponse(_ data: Data, _ paths: [ICPStateTreePath]) throws -> ICPReadStateResponse {
+    private func parseReadStateResponse(_ data: Data, _ paths: [ICPStateTreePath], rootKey: Data?, verifySignature: Bool) throws -> ICPReadStateResponse {
         let readStateResponse = try ICPCryptography.CBOR.deserialise(ReadStateResponseDecodable.self, from: data)
         let certificateCbor = try ICPCryptography.CBOR.deserialiseCbor(from: readStateResponse.certificate)
         let certificate = try ICPStateCertificate.parse(certificateCbor)
-        try certificate.verifySignature()
+        if verifySignature {
+            guard let rootKey else { throw ICPRemoteClientError.missingRootKey }
+            try certificate.verifySignature(rootKey: rootKey)
+        }
         let pathResponses = Dictionary(uniqueKeysWithValues: paths
             .map { ($0, certificate.tree.getValue(for: $0)) }
             .filter { $0.1 != nil }
@@ -288,4 +333,8 @@ private struct QueryResponseDecodable: Decodable {
 
 private struct ReadStateResponseDecodable: Decodable {
     let certificate: Data
+}
+
+private struct StatusResponseDecodable: Decodable {
+    let root_key: Data?
 }

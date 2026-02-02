@@ -9,8 +9,6 @@ import BigInt
 import PotentCBOR
 import Candid
 
-private let canisterBaseUrl: URL = "https://icp-api.io/api/v2/canister"
-
 public struct ICPMethod {
     public let canister: ICPPrincipal
     public let methodName: String
@@ -40,22 +38,22 @@ public struct ICPRequest {
     public let requestId: Data
     public let httpRequest: HttpRequest
     
-    public init(_ request: ICPRequestType, canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil) async throws {
+    public init(_ request: ICPRequestType, canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil, network: ICPNetwork = .mainnet) async throws {
         let content = try ICPRequestBuilder.buildContent(request, sender: sender?.principal)
         requestId = try content.calculateRequestId()
         let envelope = try await ICPRequestBuilder.buildEnvelope(content, sender: sender)
         let rawBody = try ICPCryptography.CBOR.serialise(envelope)
         httpRequest = HttpRequest(
             method: "POST",
-            url: Self.buildUrl(request, canister),
+            url: Self.buildUrl(request, canister, baseURL: network.canisterBaseURL),
             body: rawBody,
             headers: ["Content-Type": "application/cbor"],
             timeout: 120
         )
     }
     
-    private static func buildUrl(_ request: ICPRequestType, _ canister: ICPPrincipal) -> URL {
-        var url = canisterBaseUrl
+    private static func buildUrl(_ request: ICPRequestType, _ canister: ICPPrincipal, baseURL: URL) -> URL {
+        var url = baseURL
         url.append(path: canister.string)
         url.append(path: ICPRequestTypeEncodable.from(request).rawValue)
         return url
