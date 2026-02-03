@@ -16,4 +16,12 @@ public extension ICPCryptography {
         let bytes = hash + Data([0x02])
         return ICPPrincipal(bytes)
     }
+
+    /// Principal with Self-Authenticating ID from a DER-encoded public key.
+    /// These have the form H(der_public_key) · 0x02 (29 bytes).
+    static func selfAuthenticatingPrincipal(derPublicKey publicKey: Data) -> ICPPrincipal {
+        let hash = ICPCryptography.sha224(publicKey)
+        let bytes = hash + Data([0x02])
+        return ICPPrincipal(bytes)
+    }
 }
