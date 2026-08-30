@@ -46,11 +46,18 @@ public enum ICPRequestBuilder {
         }
         let requestId = try content.calculateRequestId()
         let senderSignature = try await sender.sign(requestId, domain: "ic-request")
-        let senderPublicKey = try ICPCryptography.der(uncompressedEcPublicKey: sender.rawPublicKey)
+        let senderPublicKey: Data
+        if let derProvider = sender as? ICPDerPublicKeyProvider {
+            senderPublicKey = derProvider.publicKeyDer
+        } else {
+            senderPublicKey = try ICPCryptography.der(uncompressedEcPublicKey: sender.rawPublicKey)
+        }
+        let senderDelegation = (sender as? ICPDelegationProvider)?.delegationChain
         return ICPRequestEnvelope(
             content: content,
             sender_pubkey: senderPublicKey,
-            sender_sig: senderSignature
+            sender_sig: senderSignature,
+            sender_delegation: senderDelegation
         )        
     }
     

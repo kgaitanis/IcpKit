@@ -29,6 +29,11 @@ extension ICPCryptography {
 /// https://github.com/horizontalsystems/HsCryptoKit.Swift/blob/main/Sources/HsCryptoKit/EllipticCurveEncrypterSecp256k1.swift
 import secp256k1
 
+enum Secp256k1VerifyError: Error {
+    case invalidPublicKey
+    case invalidSignature
+}
+
 /// Convenience class over libsecp256k1 methods
 private final class EllipticCurveEncrypterSecp256k1 {
     // holds internal state of the c library
@@ -122,4 +127,49 @@ private final class EllipticCurveEncrypterSecp256k1 {
         return output
     }
     
+}
+
+public extension ICPCryptography {
+    static func verifySecp256k1(signatureDER: Data, message: Data, publicKeyUncompressed: Data) throws -> Bool {
+        let context = secp256k1.Context.raw
+        var pubKey = secp256k1_pubkey()
+        let pubKeyResult = publicKeyUncompressed.withUnsafeBytes { buffer -> Int32 in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return secp256k1_ec_pubkey_parse(
+                context,
+                &pubKey,
+                baseAddress.assumingMemoryBound(to: UInt8.self),
+                publicKeyUncompressed.count
+            )
+        }
+        guard pubKeyResult == 1 else {
+            throw Secp256k1VerifyError.invalidPublicKey
+        }
+
+        var signature = secp256k1_ecdsa_signature()
+        let signatureResult = signatureDER.withUnsafeBytes { buffer -> Int32 in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return secp256k1_ecdsa_signature_parse_der(
+                context,
+                &signature,
+                baseAddress.assumingMemoryBound(to: UInt8.self),
+                signatureDER.count
+            )
+        }
+        guard signatureResult == 1 else {
+            throw Secp256k1VerifyError.invalidSignature
+        }
+
+        let hash = ICPCryptography.sha256(message)
+        let verifyResult = hash.withUnsafeBytes { buffer -> Int32 in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return secp256k1_ecdsa_verify(
+                context,
+                &signature,
+                baseAddress.assumingMemoryBound(to: UInt8.self),
+                &pubKey
+            )
+        }
+        return verifyResult == 1
+    }
 }

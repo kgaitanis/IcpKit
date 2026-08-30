@@ -34,6 +34,7 @@ let package = Package(
             dependencies: [
                 "Candid",
                 "BigInt",
+                .product(name: "PotentCodables", package: "PotentCodables"),
                 .product(name: "secp256k1", package: "secp256k1.swift"),
 //                .target(name: "bls12381"),
             ]

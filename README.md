@@ -448,6 +448,23 @@ class SimpleSigningPrincipal: ICPSigningPrincipal {
 }
 ```
 
+### Delegated Identity
+
+`ICPDelegatedIdentity` represents an identity that has been delegated authority to authenticate and sign as a different principal. It validates the delegation chain on initialization and ensures the chain ultimately matches the signing `ICPSigningPrincipal`.
+
+- `fromPublicKeyDer` is the DER-encoded public key of the delegated-from principal.
+- `chain` is an ordered array of `ICPSignedDelegation` from `fromPublicKeyDer` to `to`.
+- Actual signing is performed by `to`, so `ICPDelegatedIdentity.sign(...)` forwards to `to.sign(...)`.
+- Use `unchecked(...)` to skip validation only when the chain is already trusted.
+
+```swift
+let delegated = try ICPDelegatedIdentity(
+  fromPublicKeyDer: fromDer,
+  to: signingIdentity,
+  chain: signedDelegations
+)
+```
+
 ## Known Limitations
 
 - Serialisation of recursive candid values leads to infinite loop.
