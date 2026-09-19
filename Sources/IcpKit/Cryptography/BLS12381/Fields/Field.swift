@@ -9,7 +9,7 @@ import BigInt
 import Foundation
 
 /// An algebraic field.
-public protocol Field:
+protocol Field:
     Equatable,
     MultipliableByScalarArtithmetic,
     Numeric_,

@@ -10,7 +10,7 @@ import BigInt
 import CryptoKit // SHA256
 
 /// Utilities for 3-isogeny map from E' to E.
-internal enum Isogeny {
+enum Isogeny {
     struct Fp2_4: ExpressibleByArrayLiteral {
         let elements: [Fp2]
         static let count = 4
@@ -87,8 +87,8 @@ internal enum Isogeny {
 
 // For info about different ciphersuites see
 // https://www.ietf.org/id/draft-irtf-cfrg-bls-signature-05.html#name-ciphersuites-for-bls12-381
-public enum BLS {}
-public extension BLS {
+enum BLS {}
+extension BLS {
     
     /// `C_bit`, compression bit for serialization flag
     static let exp2_381 = BigInt(2).power(381)
@@ -104,7 +104,7 @@ public extension BLS {
 }
 
 
-internal extension BLS {
+extension BLS {
     
     static let utRoot = Fp6(c0: .zero, c1: .one, c2: .zero)
     static let wsq = Fp12(c0: utRoot, c1: .zero)
@@ -326,7 +326,7 @@ internal extension BLS {
         
         let dst = domainSeperationTag.dataNoLongerThan255ElseHashed(mode: .expandMessageXMD)
 
-        return try await Task {
+        return await Task {
             let dstPrime = dst + i2osp(dst.count, 1)
             let zPad = i2osp(0, rInBytes)
             let outputByteCountData = i2osp(outputByteCount, 2)
@@ -526,19 +526,19 @@ func os2ip(_ data: Data) -> BigInt {
     BigInt(sign: .plus, magnitude: BigUInt(data))
 }
 
-public struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
-    internal let _data: Data
-    public enum Mode {
+struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
+    let _data: Data
+    enum Mode {
         case expandMessageXOF
         case expandMessageXMD
     }
     
-    internal func toString(encoding: String.Encoding = .utf8) -> String {
+    func toString(encoding: String.Encoding = .utf8) -> String {
         String(data: _data, encoding: encoding)!
     }
     
     /// https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#section-5.4.3
-    public func dataNoLongerThan255ElseHashed(mode: Mode = .expandMessageXMD) -> Data {
+    func dataNoLongerThan255ElseHashed(mode: Mode = .expandMessageXMD) -> Data {
         if _data.count <= 255 {
             return _data
         } else {
@@ -551,46 +551,46 @@ public struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiter
             }
         }
     }
-    public init(data: Data) {
+    init(data: Data) {
         precondition(data.count > 0)
         precondition(data.count <= 2048)
         self._data = data
     }
     
       // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
-    public init(_ string: String) {
+    init(_ string: String) {
         self.init(data: string.data(using: .utf8)!)
     }
-    public init(stringLiteral value: String) {
+    init(stringLiteral value: String) {
         self.init(value)
     }
     
     // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-8.8.2
-    public static let g2Basic: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"
+    static let g2Basic: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"
     
     /// Proof of possession
-    public static let g2Pop: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_"
+    static let g2Pop: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_"
 }
 
-public struct HashToFieldConfig: Equatable {
+struct HashToFieldConfig: Equatable {
     /// Domain seperation tag, aka `DST`.
-    public let domainSeperationTag: DomainSeperationTag
+    let domainSeperationTag: DomainSeperationTag
     /// The characteristic of F, where `F` is a finite field of *characteristic* `p` and *order* `q = p^m`
-    public let p: BigInt
+    let p: BigInt
     
     /// The extension degree of F, m >= 1, where F is a finite field of characteristic p and order q = p^m
-    public let m: Int
+    let m: Int
 
     /// The target security level for the suite in bits [defined in reference][reference]
     ///
     /// [reference]: https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-5.1
-    public let k: Int
+    let k: Int
     
     /// option to use a message that has already been processed by
     /// expand_message_xmd
-    public let expand: Bool
+    let expand: Bool
     
-    public init(
+    init(
         domainSeperationTag: DomainSeperationTag = .g2Basic,
         p: BigInt = G1.Curve.P,
         m: Int = 2,
@@ -604,11 +604,11 @@ public struct HashToFieldConfig: Equatable {
         self.expand = expand
     }
 }
-public extension HashToFieldConfig {
+extension HashToFieldConfig {
     static let defaultForHashToG2 = Self()
 }
 
-public extension HashToFieldConfig {
+extension HashToFieldConfig {
     
     /// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-5.1
     var L: Int {

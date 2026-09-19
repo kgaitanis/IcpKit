@@ -7,16 +7,16 @@
 
 import Foundation
 
-public struct Signature: Equatable, GroupElementConveritible {
-    public typealias Group = G2
-    public let groupElement: G2
+struct Signature: Equatable, GroupElementConveritible {
+    typealias Group = G2
+    let groupElement: G2
     
-    public init(groupElement: G2) {
+    init(groupElement: G2) {
         self.groupElement = groupElement
     }
 }
 
-public extension Signature {
+extension Signature {
     
     /// Adds a bunch of signature points together.
     /// `s1 + s2 + s3 + ... + sN = sA`

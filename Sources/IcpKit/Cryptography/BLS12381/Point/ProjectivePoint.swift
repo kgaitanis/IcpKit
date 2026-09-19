@@ -9,9 +9,9 @@ import Foundation
 import BigInt
 
 
-public final class StorageOfPrecomputedProjectivePoints<Point: ProjectivePoint> {
-    internal var pointsDictionary: [Int: [Point]]
-    internal init(pointsDictionary: [Int: [Point]] = [:]) {
+final class StorageOfPrecomputedProjectivePoints<Point: ProjectivePoint> {
+    var pointsDictionary: [Int: [Point]]
+    init(pointsDictionary: [Int: [Point]] = [:]) {
         self.pointsDictionary = pointsDictionary
     }
 }
@@ -25,7 +25,7 @@ public final class StorageOfPrecomputedProjectivePoints<Point: ProjectivePoint> 
 ///
 /// When mapping into affine point we multiply the X and Y respectively
 /// with the inverse of `Z`. `Xa=Xp/Zp, Ya=Yp/Zp`
-public protocol ProjectivePoint<F>:
+protocol ProjectivePoint<F>:
     CustomToStringConvertible,
     SignedNumeric_,
     ThrowingMultipliableByScalarArtithmetic,
@@ -82,14 +82,14 @@ where Affine == AffinePoint<F> {
 
 }
 
-public extension ProjectivePoint {
+extension ProjectivePoint {
     mutating func double() {
         self = self.doubled()
     }
 }
 
 // MARK: Debugging
-public extension ProjectivePoint {
+extension ProjectivePoint {
     func toString(radix: Int = 16, pad: Bool = false) -> String {
         """
         \(Self.self)(
@@ -118,7 +118,7 @@ public extension ProjectivePoint {
     }
 }
 
-public extension ProjectivePoint {
+extension ProjectivePoint {
     
     init(simpleProjective: SimpleProjectivePoint<F>) {
         self.init(
@@ -277,7 +277,7 @@ public extension ProjectivePoint {
 }
 
 // MARK: Precompute
-public extension ProjectivePoint {
+extension ProjectivePoint {
     
     mutating func calcMultiplyPrecomputes(w: Int) throws {
         guard __storageForPrecomputes.pointsDictionary[w] == nil else {
@@ -386,7 +386,7 @@ private extension ProjectivePoint {
 }
 
 // MARK: Error
-public enum ProjectivePointError: Swift.Error, Equatable, CustomStringConvertible {
+enum ProjectivePointError: Swift.Error, Equatable, CustomStringConvertible {
     case failedToConvertToAffinePointInverted_Z_cannotBeZero
     case invalidScalarMustBeLargerThanZero
     case invalidScalarMustNotBeLargerThanOrder
@@ -403,7 +403,7 @@ public enum ProjectivePointError: Swift.Error, Equatable, CustomStringConvertibl
     case invalidPointNotOfPrimeOrderSubgroup
 }
 
-public extension ProjectivePointError {
+extension ProjectivePointError {
     var description: String {
         switch self {
         case .failedToConvertToAffinePointInverted_Z_cannotBeZero: return "failedToConvertToAffinePointInverted_Z_cannotBeZero"

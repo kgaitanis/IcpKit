@@ -8,7 +8,7 @@
 import Foundation
 import BigInt
 
-public protocol EllipticCurve where Group.Curve == Self {
+protocol EllipticCurve where Group.Curve == Self {
     associatedtype Group: FiniteGroup
     /// The generator point of a group this projective point is an element of.
     static var generator: Group { get }
@@ -16,12 +16,12 @@ public protocol EllipticCurve where Group.Curve == Self {
     static var order: BigInt { get }
     static var cofactor: BigInt { get }
 }
-public extension EllipticCurve {
+extension EllipticCurve {
     static var maxBits: Int { Self.order.bitWidthIgnoreSign }
 }
 
 
-public extension EllipticCurve {
+extension EllipticCurve {
     /// Modulus, short name.
     static var P: BigInt { modulus }
     /// Order, short name.
@@ -30,11 +30,11 @@ public extension EllipticCurve {
     static var b: BigInt { order }
 }
 
-public protocol DataSerializable {
+protocol DataSerializable {
     func toData(compress: Bool) -> Data
 }
 
-public extension DataSerializable {
+extension DataSerializable {
     func toHex(
         compress: Bool = true,
         hexEncoding: Data.HexEncodingOptions = []
@@ -43,13 +43,13 @@ public extension DataSerializable {
     }
 }
 
-public protocol DataDeserializable {
+protocol DataDeserializable {
     init(bytes: some ContiguousBytes) throws
     init(uncompressedData: Data) throws
     init(compressedData: Data) throws
 }
 
-public protocol FiniteGroup:
+protocol FiniteGroup:
     Equatable,
     CustomToStringConvertible,
     ThrowingSignedNumeric,
@@ -72,7 +72,7 @@ where Curve.Group == Self {
     static var uncompressedDataByteCount: Int { get }
 }
 
-public extension FiniteGroup {
+extension FiniteGroup {
     static var generator: Self { Self.Curve.generator }
     static func + (lhs: Self, rhs: Self) throws -> Self {
         try op(lhs, rhs, +)
@@ -98,7 +98,7 @@ private extension FiniteGroup {
 }
 
 
-public extension FiniteGroup {
+extension FiniteGroup {
     static var identity: Self { try! Self(x: .one, y: .one, z: .zero) }
     static var zero: Self { try! Self.init(point: .zero) }
     
@@ -119,7 +119,7 @@ public extension FiniteGroup {
     
     var isZero: Bool { point.isZero }
 }
-public extension FiniteGroup {
+extension FiniteGroup {
     var x: Point.F { point.x }
     var y: Point.F { point.y }
     var z: Point.F { point.z }

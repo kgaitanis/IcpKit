@@ -7,13 +7,13 @@
 
 import Foundation
 
-public struct PublicKey: GroupElementConveritible, Equatable {
+struct PublicKey: GroupElementConveritible, Equatable {
    
-    public typealias Group = G1
+    typealias Group = G1
     
-    public let groupElement: G1
+    let groupElement: G1
    
-    public init(groupElement: G1) throws {
+    init(groupElement: G1) throws {
         guard !groupElement.isZero else {
             throw Error.invalidPublicKeyAtInfinity
         }
@@ -24,7 +24,7 @@ public struct PublicKey: GroupElementConveritible, Equatable {
     }
 }
 
-public extension PublicKey {
+extension PublicKey {
     
     enum Error: String, Swift.Error, Sendable {
         case invalidPublicKeyAtInfinity
@@ -110,7 +110,7 @@ public extension PublicKey {
 }
 struct CannotAggregateEmptyList: Error {}
 
-internal extension PublicKey {
+extension PublicKey {
     
     func _isValidSignature(
         _ signature: Signature,

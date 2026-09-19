@@ -21,10 +21,10 @@ extension DomainSeperationTag: @unchecked Sendable {}
 extension HashToFieldConfig: @unchecked Sendable {}
 
 extension Data {
-    public struct HexEncodingOptions: OptionSet {
-        public let rawValue: Int
+    struct HexEncodingOptions: OptionSet {
+        let rawValue: Int
 
-        public init(rawValue: Int) {
+        init(rawValue: Int) {
             self.rawValue = rawValue
         }
     }

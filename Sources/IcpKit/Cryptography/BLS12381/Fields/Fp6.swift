@@ -8,18 +8,18 @@
 import Foundation
 import BigInt
 
-public struct Fp6: Field, CustomDebugStringConvertible {
-    public let c0: Fp2
-    public let c1: Fp2
-    public let c2: Fp2
-    public init(c0: Fp2, c1: Fp2, c2: Fp2) {
+struct Fp6: Field, CustomDebugStringConvertible {
+    let c0: Fp2
+    let c1: Fp2
+    let c2: Fp2
+    init(c0: Fp2, c1: Fp2, c2: Fp2) {
         self.c0 = c0
         self.c1 = c1
         self.c2 = c2
     }
 }
 
-public extension Fp6 {
+extension Fp6 {
     
     init<C>(coeffs: C) where C: Collection, C.Element == BigInt, C.Index == Int {
         precondition(coeffs.count == 6)
@@ -58,7 +58,7 @@ public extension Fp6 {
     }
 }
 
-public extension Fp6 {
+extension Fp6 {
     
     func toString(radix: Int, pad: Bool) -> String {
         """
@@ -72,7 +72,7 @@ public extension Fp6 {
 
 }
 
-internal enum Frobenius {
+enum Frobenius {
     static let aaaa = BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaaa", radix: 16)!
     
     /// Used by `psi2C1` and Fp6 (one and two) and Fp12
@@ -163,7 +163,7 @@ internal enum Frobenius {
       
 }
 
-public extension Fp6 {
+extension Fp6 {
     
     static let zero = Self.init(c0: .zero, c1: .zero, c2: .zero)
     
@@ -267,7 +267,7 @@ public extension Fp6 {
     }
 }
 
-public extension Fp6 {
+extension Fp6 {
     /// Multiply by quadratic nonresidue v.
     func mulByNonresidue() -> Self {
         .init(

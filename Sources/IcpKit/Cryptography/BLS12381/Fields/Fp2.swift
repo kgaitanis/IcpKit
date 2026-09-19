@@ -9,20 +9,20 @@ import Foundation
 import BigInt
 
 /// Fp₂ over complex plane
-public struct Fp2: FiniteField, CustomDebugStringConvertible {
+struct Fp2: FiniteField, CustomDebugStringConvertible {
     /// Real part, aka `c0`
-    public let c0: Fp
+    let c0: Fp
     
     /// Imaginary part, aka `c1`
-    public let c1: Fp
+    let c1: Fp
     
-    public init(c0: Fp, c1: Fp) {
+    init(c0: Fp, c1: Fp) {
         self.c0 = c0
         self.c1 = c1
     }
 }
 private struct BadCount: Error {}
-public extension Fp2 {
+extension Fp2 {
     init(c0: BigInt, c1: BigInt) {
         self.init(c0: .init(value: c0), c1: .init(value: c1))
     }
@@ -54,7 +54,7 @@ public extension Fp2 {
     var imaginary: BigInt { c1.value }
 }
 
-public extension Fp2 {
+extension Fp2 {
     
     func toString(radix: Int, pad: Bool) -> String {
         """
@@ -66,7 +66,7 @@ public extension Fp2 {
     }
 }
 
-public extension Fp2 {
+extension Fp2 {
     /// The order of this field equals the modulus of G2.
     static let order = G2.Curve.modulus
     static let zero = Self(c0: .zero, c1: .zero)
@@ -168,7 +168,7 @@ public extension Fp2 {
     }
 }
 
-internal extension Fp2 {
+extension Fp2 {
     /// For `roots of unity`.
     static let rv1 = BigInt("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09", radix: 16)!
 
@@ -184,7 +184,7 @@ internal extension Fp2 {
 }
 
 
-public extension Fp2 {
+extension Fp2 {
     
     /// Eighth roots of unity, used for computing square roots in Fp2.
     /// To verify or re-calculate:

@@ -9,11 +9,11 @@ import Foundation
 import BigInt
 
 /// A Finite algebraic field.
-public protocol FiniteField: Field {
+protocol FiniteField: Field {
     static var order: BigInt { get }
     static var maxBits: Int { get }
 }
-public extension FiniteField {
+extension FiniteField {
     var order: BigInt { Self.order }
     static var maxBits: Int { Self.order.bitWidthIgnoreSign }
 }

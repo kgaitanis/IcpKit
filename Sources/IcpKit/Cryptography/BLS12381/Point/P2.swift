@@ -7,23 +7,23 @@
 
 import Foundation
 
-public struct P2: ProjectivePoint {
+struct P2: ProjectivePoint {
    
-    public let x: Fp2
-    public let y: Fp2
-    public let z: Fp2
+    let x: Fp2
+    let y: Fp2
+    let z: Fp2
     
-    public let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self> = .init()
+    let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self> = .init()
     private let simpleStorageOfPrecomputedPoints: StorageOfPrecomputedSimplePoints = .init()
     
-    public init(x: Fp2, y: Fp2, z: Fp2 = .one) {
+    init(x: Fp2, y: Fp2, z: Fp2 = .one) {
         self.x = x
         self.y = y
         self.z = z
     }
 }
 
-public extension P2 {
+extension P2 {
 
     init(privateKey: PrivateKey) {
         fatalError()
@@ -31,13 +31,13 @@ public extension P2 {
     
 }
 
-public extension P2 {
+extension P2 {
     typealias F = Fp2
     static let zero = Self(x: .one, y: .one, z: .zero)
 }
 
 
-public extension P2 {
+extension P2 {
     
     /// Encodes byte string to elliptic curve
       /// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3
@@ -161,7 +161,7 @@ public extension P2 {
     }
 }
 
-public extension P2 {
+extension P2 {
     func toSignature() -> Signature {
         fatalError()
     }

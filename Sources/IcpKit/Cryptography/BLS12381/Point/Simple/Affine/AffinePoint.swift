@@ -7,16 +7,16 @@
 
 import Foundation
 
-public struct AffinePoint<F: Field>: Equatable {
-    public let x: F
-    public let y: F
-    public init(x: F, y: F) {
+struct AffinePoint<F: Field>: Equatable {
+    let x: F
+    let y: F
+    init(x: F, y: F) {
         self.x = x
         self.y = y
     }
 }
 
-public extension AffinePoint {
+extension AffinePoint {
     func toString(radix: Int = 16, pad: Bool = false) -> String {
         """
         Affine(
@@ -27,7 +27,7 @@ public extension AffinePoint {
     }
 }
 
-public extension AffinePoint where F == Fp2 {
+extension AffinePoint where F == Fp2 {
     // Ψ(P) endomorphism
     func psi() -> Self {
         // Untwist Fp2->Fp12 && frobenius(1) && twist back
@@ -51,4 +51,3 @@ public extension AffinePoint where F == Fp2 {
 
 /// `1 / F2(2)^((p-1)/3) in GF(p²)`
 private let psi2C1 = Frobenius.aaac
-

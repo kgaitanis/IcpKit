@@ -2,9 +2,9 @@ import BigInt
 import Foundation
 
 // MARK: PrivateKey
-public struct PrivateKey {
+struct PrivateKey {
     private let scalar: BigInt
-    public init(scalar: BigInt) throws {
+    init(scalar: BigInt) throws {
         guard scalar > 0 && scalar <= G2.Curve.order else {
             throw Error.invalidPrivateKey
         }
@@ -12,7 +12,7 @@ public struct PrivateKey {
     }
 }
 
-public extension PrivateKey {
+extension PrivateKey {
     
     enum Error: Swift.Error {
         case invalidPrivateKey
@@ -40,7 +40,7 @@ public extension PrivateKey {
     }
 }
 
-internal extension PrivateKey {
+extension PrivateKey {
     /// Executes `hashToCurve` on the message and then multiplies the result by private key.
     /// S = pk x H(m)
     func sign(

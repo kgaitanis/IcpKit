@@ -14,19 +14,19 @@ import BigInt
 /// Element of the cyclic subgroup of `E(GF(p))` of `order r`. This element has a
 /// projective point `(x, y, z)` in the `Fp` field (`E(GF(p))`),
 /// that **guaranteed** be on the curve.
-public struct G1: FiniteGroup, Equatable {
-    public let point: Point
+struct G1: FiniteGroup, Equatable {
+    let point: Point
     
-    public init(point: Point) throws {
+    init(point: Point) throws {
         self.point =  try point.assertValidity()
     }
     
-    public init(x: F, y: F, z: F = P1.zDefault) throws {
+    init(x: F, y: F, z: F = P1.zDefault) throws {
         try self.init(point: .init(x: x, y: y, z: z))
     }
 }
 
-public extension G1 {
+extension G1 {
     typealias F = Point.F
     typealias Point = P1
     
@@ -34,7 +34,7 @@ public extension G1 {
     enum Curve: EllipticCurve {}
 }
 
-public extension G1.Curve {
+extension G1.Curve {
     typealias Group = G1
     /// G1 is the order-q subgroup of `E1(Fp) : y² = x³ + 4, #E1(Fp) = h1q`
     /// where characteristic: `z + (z⁴ - z² + 1)(z - 1)²/3`
@@ -60,7 +60,7 @@ public extension G1.Curve {
     static let x = BigInt("d201000000010000", radix: 16)!
 }
 
-public extension G1 {
+extension G1 {
     static let compressedDataByteCount = 48
     static let uncompressedDataByteCount = 96
   

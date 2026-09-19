@@ -8,12 +8,12 @@
 import Foundation
 import BigInt
 
-public extension AdditiveArithmetic {
+extension AdditiveArithmetic {
     var isZero: Bool { self == .zero }
 }
 
 /// A version of Numeric without `ExpressibleByIntegerLiteral`  or `Magnitude` requirement.
-public protocol Numeric_: AdditiveArithmetic {
+protocol Numeric_: AdditiveArithmetic {
     /// Multiplies two values and produces their product.
     static func * (lhs: Self, rhs: Self) -> Self
  
@@ -23,7 +23,7 @@ public protocol Numeric_: AdditiveArithmetic {
     static func *= (lhs: inout Self, lhs: Self)
 }
 
-public extension Numeric_ {
+extension Numeric_ {
     
     /// Multiplies two values and stores the result in the left-hand-side variable.
     static func *= (lhs: inout Self, rhs: Self) {
@@ -32,7 +32,7 @@ public extension Numeric_ {
 }
 
 /// A version of Numeric without `ExpressibleByIntegerLiteral`  or `Magnitude` requirement.
-public protocol SignedNumeric_ {
+protocol SignedNumeric_ {
     
     /// Returns the additive inverse of the self.
     func negated() -> Self
@@ -49,7 +49,7 @@ public protocol SignedNumeric_ {
 }
 
 /// A throwing version of  version of `Numeric` without `ExpressibleByIntegerLiteral`  or `Magnitude` requirement.
-public protocol ThrowingSignedNumeric {
+protocol ThrowingSignedNumeric {
     
     /// Returns the additive inverse of the self.
     func negated() throws -> Self
@@ -64,7 +64,7 @@ public protocol ThrowingSignedNumeric {
     /// Default implementation provided.
     mutating func negate() throws
 }
-public extension ThrowingSignedNumeric {
+extension ThrowingSignedNumeric {
     
     /// Returns the additive inverse of the specified value.
     static prefix func - (operand: Self) throws -> Self {
@@ -78,12 +78,12 @@ public extension ThrowingSignedNumeric {
 }
 
 extension AdditiveArithmetic where Self: SignedNumeric_ {
-    public static func - (lhs: Self, rhs: Self) -> Self {
+    static func - (lhs: Self, rhs: Self) -> Self {
         lhs + rhs.negated()
     }
 }
 
-public extension SignedNumeric_ {
+extension SignedNumeric_ {
     
     /// Returns the additive inverse of the specified value.
     static prefix func - (operand: Self) -> Self {
@@ -96,7 +96,7 @@ public extension SignedNumeric_ {
     }
 }
 
-public protocol DivisionArithmetic {
+protocol DivisionArithmetic {
     
     /// Divides the left-hand-side variable with the right-hand-side variable
     /// and returns the result
@@ -108,7 +108,7 @@ public protocol DivisionArithmetic {
     /// Default implementation provided.
     static func /= (lhs: inout Self, rhs: Self) throws
 }
-public extension DivisionArithmetic {
+extension DivisionArithmetic {
     /// Divides the left-hand-side variable with the right-hand-side variable
     /// and stores the result in the left-hand-side variable.
     static func /= (lhs: inout Self, rhs: Self) throws {
@@ -116,7 +116,7 @@ public extension DivisionArithmetic {
     }
 }
 
-public protocol MultipliableByScalarArtithmetic {
+protocol MultipliableByScalarArtithmetic {
     /// Multiplies left-hand-side variable with the right-hand-side scalar
     /// and returns the product, having the same type as the left-hand-side
     /// variable.
@@ -128,7 +128,7 @@ public protocol MultipliableByScalarArtithmetic {
     /// Default implementation provided.
     static func *= (lhs: inout Self, scalar: BigInt)
 }
-public extension MultipliableByScalarArtithmetic {
+extension MultipliableByScalarArtithmetic {
     /// Multiplies left-hand-side variable with the right-hand-side scalar
     /// and stores the product in the left-hand-side variable.
     static func *= (lhs: inout Self, scalar: BigInt) {
@@ -149,7 +149,7 @@ public extension MultipliableByScalarArtithmetic {
     }
 }
 
-public protocol DivisibleByScalarArithmetic {
+protocol DivisibleByScalarArithmetic {
     /// Divides the left-hand-side variable with the right-hand-side scalar
     /// and returns the result, having the same type as the left-hand-side
     /// variable.
@@ -162,7 +162,7 @@ public protocol DivisibleByScalarArithmetic {
     static func /= (lhs: inout Self, scalar: BigInt) throws
 }
 
-public extension DivisibleByScalarArithmetic {
+extension DivisibleByScalarArithmetic {
     /// Divides the left-hand-side variable with the right-hand-side scalar
     /// and stores the product in the left-hand-side variable.
     static func /= (lhs: inout Self, scalar: BigInt) throws {
@@ -170,7 +170,7 @@ public extension DivisibleByScalarArithmetic {
     }
 }
 
-public protocol ThrowingMultipliableByScalarArtithmetic {
+protocol ThrowingMultipliableByScalarArtithmetic {
     /// Multiplies left-hand-side variable with the right-hand-side scalar
     /// and returns the product, having the same type as the left-hand-side
     /// variable.
@@ -182,7 +182,7 @@ public protocol ThrowingMultipliableByScalarArtithmetic {
     /// Default implementation provided.
     static func *= (lhs: inout Self, scalar: BigInt) throws
 }
-public extension ThrowingMultipliableByScalarArtithmetic {
+extension ThrowingMultipliableByScalarArtithmetic {
     /// Multiplies left-hand-side variable with the right-hand-side scalar
     /// and stores the product in the left-hand-side variable.
     static func *= (lhs: inout Self, scalar: BigInt) throws {
@@ -203,7 +203,7 @@ public extension ThrowingMultipliableByScalarArtithmetic {
     }
 }
 
-public protocol ThrowingAdditiveArtithmetic {
+protocol ThrowingAdditiveArtithmetic {
     /// Adds two values and produces their sum.
     static func + (lhs: Self, rhs: Self) throws -> Self
  
@@ -212,7 +212,7 @@ public protocol ThrowingAdditiveArtithmetic {
     /// Default implementation provided.
     static func += (lhs: inout Self, rhs: Self) throws
 }
-public extension ThrowingAdditiveArtithmetic {
+extension ThrowingAdditiveArtithmetic {
     /// Adds two values and stores the result in the left-hand-side variable.
     static func += (lhs: inout Self, rhs: Self) throws {
         lhs = try lhs + rhs
@@ -220,7 +220,7 @@ public extension ThrowingAdditiveArtithmetic {
 }
 
 extension ThrowingAdditiveArtithmetic where Self: ThrowingSignedNumeric {
-    public static func - (lhs: Self, rhs: Self) throws -> Self {
+    static func - (lhs: Self, rhs: Self) throws -> Self {
         try lhs + rhs.negated()
     }
 }

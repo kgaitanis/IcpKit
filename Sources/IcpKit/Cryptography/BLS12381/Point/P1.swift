@@ -15,13 +15,13 @@ import BigInt
 ///
 /// We add `z` because we work with projective coordinates instead of affine `x-y`,
 /// which results in faster performance.
-public struct P1: ProjectivePoint, Equatable {
-    public let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self>
-    public let x: Fp
-    public let y: Fp
-    public let z: Fp
+struct P1: ProjectivePoint, Equatable {
+    let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self>
+    let x: Fp
+    let y: Fp
+    let z: Fp
     
-    public init(x: Fp, y: Fp, z: Fp = Self.zDefault) {
+    init(x: Fp, y: Fp, z: Fp = Self.zDefault) {
         self.x = x
         self.y = y
         self.z = z
@@ -30,20 +30,20 @@ public struct P1: ProjectivePoint, Equatable {
 }
 
 // MARK: Init
-public extension P1 {
+extension P1 {
     static let zDefault = Fp.one
    
 }
 
 // MARK: Constants
-public extension P1 {
+extension P1 {
     typealias F = Fp
     
 
 }
 
 // MARK: Public
-public extension P1 {
+extension P1 {
     @discardableResult
     func assertValidity() throws -> Self {
         if isZero {
@@ -75,7 +75,7 @@ public extension P1 {
 }
 
 // MARK: ProjectivePoint
-public extension P1 {
+extension P1 {
     /// Checks that equation is fulfilled: `y² = x³ + b`
     func isOnCurve() -> Bool {
         do {

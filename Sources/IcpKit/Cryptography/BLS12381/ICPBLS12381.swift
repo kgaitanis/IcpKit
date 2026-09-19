@@ -27,7 +27,7 @@ extension BLS {
 
         let mapped = try fieldElements
             .map { try mapToG1(Fp(value: $0[0])) }
-            .map { try P1(simpleProjective: $0) }
+            .map { P1(simpleProjective: $0) }
 
         let point = try (mapped[0] + mapped[1]).clearCofactor()
         return try G1(point: point)

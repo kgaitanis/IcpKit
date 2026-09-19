@@ -9,15 +9,15 @@ import Foundation
 import BigInt
 
 /// Finite field over `p`.
-public struct Fp: FiniteField {
-    public let value: BigInt
+struct Fp: FiniteField {
+    let value: BigInt
     init(value: BigInt) {
         self.value = mod(a: value, b: Self.order)//value % Self.order
     }
 }
 
 // MARK: CustomStringConvertible
-public extension Fp {
+extension Fp {
     
     func toString(radix: Int = 16, pad: Bool) -> String {
         _toString(
@@ -63,7 +63,7 @@ func invert(number: BigInt, modulo: BigInt) throws -> BigInt {
     return mod(a: x, b: modulo)
 }
 
-public extension Fp {
+extension Fp {
     
     /// The order of this field equals the modulus of G1.
     static let order = G1.Curve.modulus
@@ -170,4 +170,3 @@ private extension Fp {
         .init(value: operation(lhs.value, rhs.value))
     }
 }
-

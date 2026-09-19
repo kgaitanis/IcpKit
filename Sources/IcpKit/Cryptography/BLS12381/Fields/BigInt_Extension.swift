@@ -10,7 +10,7 @@ import BigInt
 
 // MARK: CustomDebugStringConvertible
 extension BigInt: CustomDebugStringConvertible {}
-public extension BigInt {
+extension BigInt {
     
     func toDecimalString(pad: Pad? = nil) -> String {
         toString(radix: 10, pad: pad)
@@ -45,7 +45,7 @@ public extension BigInt {
        
     }
 }
-public enum Pad {
+enum Pad {
     case toEvenCount(with: String = "0")
     case toLength(Int, with: String = "0")
 }

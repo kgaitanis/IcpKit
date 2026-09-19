@@ -13,23 +13,23 @@ import BigInt
 /// Element of the cyclic subgroup of `E(GF(p^k))` of `order r`.
 /// This element has a with a projective point `(x, y , z)` in the `Fp2` field (`E(GF(p^k))`),
 /// that **guaranteed** be on the curve.
-public struct G2: FiniteGroup, Equatable {
+struct G2: FiniteGroup, Equatable {
     
-    public let point: Point
+    let point: Point
     
-    public init(point: Point) throws {
+    init(point: Point) throws {
         self.point =  try point.assertValidity()
     }
 }
 
-public extension G2 {
+extension G2 {
     typealias Point = P2
     
     /// `E₂: y² = x³ + 4(u+1)`
     enum Curve: EllipticCurve {}
 }
 
-public extension G2.Curve {
+extension G2.Curve {
     typealias Group = G2
     
     /// G2 is the order-q subgroup of E2(Fp²) : y² = x³+4(1+√−1),
@@ -67,7 +67,7 @@ public extension G2.Curve {
 
 struct BadEncodingFlag: Error {}
 struct InvalidCompressedG2Point: Error {}
-public extension G2 {
+extension G2 {
     typealias Error = ProjectivePointError
     static let compressedDataByteCount = 96
     static let uncompressedDataByteCount = 192

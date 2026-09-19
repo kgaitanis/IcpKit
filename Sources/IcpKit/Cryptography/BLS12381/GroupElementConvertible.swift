@@ -7,18 +7,18 @@
 
 import Foundation
 
-public protocol GroupElementConveritible: CustomToStringConvertible, DataSerializable, DataDeserializable {
+protocol GroupElementConveritible: CustomToStringConvertible, DataSerializable, DataDeserializable {
     associatedtype Group: FiniteGroup
     var groupElement: Group { get }
     init(groupElement: Group) throws
 }
 
-public extension GroupElementConveritible {
+extension GroupElementConveritible {
     func toString(radix: Int, pad: Bool) -> String {
         groupElement.toString(radix: radix, pad: pad)
     }
 }
-public extension GroupElementConveritible {
+extension GroupElementConveritible {
     static func ==(lhs: Self, rhs: Group) -> Bool {
         lhs.groupElement == rhs
     }
@@ -27,7 +27,7 @@ public extension GroupElementConveritible {
     }
 }
 
-public extension GroupElementConveritible {
+extension GroupElementConveritible {
 
     init(compressedData data: Data) throws {
         try self.init(groupElement: .init(compressedData: data))

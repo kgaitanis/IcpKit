@@ -7,23 +7,23 @@
 
 import Foundation
 
-public struct Message: Equatable, GroupElementConveritible {
-    public typealias Group = G2
-    public let groupElement: G2
+struct Message: Equatable, GroupElementConveritible {
+    typealias Group = G2
+    let groupElement: G2
     
-    public init(groupElement: G2) {
+    init(groupElement: G2) {
         self.groupElement = groupElement
     }
 }
 
-public extension Message {
+extension Message {
     init(hashing data: Data) async throws {
         try await self.init(hashing: data, domainSeperationTag: .g2Basic)
     }
 }
 
 
-internal extension Message {
+extension Message {
     init(hashing data: Data, domainSeperationTag: DomainSeperationTag) async throws {
         let p2 = try await P2.hashToCurve(
             message: data,

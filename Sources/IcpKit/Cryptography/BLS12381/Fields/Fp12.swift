@@ -8,19 +8,19 @@
 import BigInt
 import Foundation
 
-public struct Fp12: Field, CustomDebugStringConvertible {
-    public let c0: Fp6
-    public let c1: Fp6
+struct Fp12: Field, CustomDebugStringConvertible {
+    let c0: Fp6
+    let c1: Fp6
 }
 
-public extension Fp12 {
+extension Fp12 {
     init<C>(coeffs: C) where C: Collection, C.Element == BigInt, C.Index == Int {
         precondition(coeffs.count == 12)
         self.init(c0: .init(coeffs: coeffs.prefix(6)), c1: .init(coeffs: coeffs.suffix(6)))
     }
 }
 
-public extension Fp12 {
+extension Fp12 {
     
     func toString(radix: Int, pad: Bool) -> String {
         """
@@ -40,7 +40,7 @@ extension BigInt {
    
 }
 
-public extension Fp12 {
+extension Fp12 {
     static let zero = Self(c0: .zero, c1: .zero)
     static let one = Self(c0: .one, c1: .zero)
 
@@ -153,7 +153,7 @@ public extension Fp12 {
     //   GΦₙ(p) = {α ∈ Fpⁿ : α^Φₙ(p) = 1}
     // The result of any pairing is in a cyclotomic subgroup
     // https://eprint.iacr.org/2009/565.pdf
-    internal func cyclotomicSquare() -> Self {
+    func cyclotomicSquare() -> Self {
         let c0c0 = c0.c0
         let c0c1 = c0.c1
         let c0c2 = c0.c2
@@ -181,7 +181,7 @@ public extension Fp12 {
         )
     }
 
-    internal func cyclotomicExp(n: BigInt) -> Self {
+    func cyclotomicExp(n: BigInt) -> Self {
         return BitArray(bitPattern: n)
             .prefix(G2.Curve.x.bitWidthIgnoreSign)
             .reversed()

@@ -7,14 +7,14 @@
 
 import Foundation
 
-public protocol CustomToStringConvertible:
+protocol CustomToStringConvertible:
     CustomStringConvertible,
     CustomDebugStringConvertible
 {
     func toString(radix: Int, pad: Bool) -> String
 }
 
-public extension CustomToStringConvertible {
+extension CustomToStringConvertible {
     
     var description: String {
 //        toDecimalString(pad: false)
