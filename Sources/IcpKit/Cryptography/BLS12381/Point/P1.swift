@@ -20,17 +20,11 @@ struct P1: ProjectivePoint, Equatable, Sendable {
     let y: Fp
     let z: Fp
     
-    init(x: Fp, y: Fp, z: Fp = Self.zDefault) {
+    init(x: Fp, y: Fp, z: Fp = .one) {
         self.x = x
         self.y = y
         self.z = z
     }
-}
-
-// MARK: Init
-extension P1 {
-    static let zDefault = Fp.one
-   
 }
 
 // MARK: Constants

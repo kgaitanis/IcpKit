@@ -14,20 +14,12 @@ protocol EllipticCurve where Group.Curve == Self {
     static var generator: Group { get }
     static var modulus: BigInt { get }
     static var order: BigInt { get }
-    static var cofactor: BigInt { get }
-}
-extension EllipticCurve {
-    static var maxBits: Int { Self.order.bitWidthIgnoreSign }
 }
 
 
 extension EllipticCurve {
     /// Modulus, short name.
     static var P: BigInt { modulus }
-    /// Order, short name.
-    static var r: BigInt { order }
-    /// Cofactor, short name.
-    static var b: BigInt { order }
 }
 
 protocol FiniteGroup:
@@ -60,13 +52,6 @@ extension FiniteGroup {
     }
     func negated() throws -> Self {
         try Self(point: point.negated())
-    }
-    func subgroupCheck() -> Bool {
-        do {
-            return try point.unsafeMultiply(scalar: Curve.order) == .zero
-        } catch {
-            return false
-        }
     }
 }
 private extension FiniteGroup {

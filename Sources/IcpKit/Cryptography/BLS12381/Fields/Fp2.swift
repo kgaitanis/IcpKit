@@ -160,15 +160,6 @@ extension Fp2 {
     /// For `roots of unity`.
     static let rv1 = BigInt("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09", radix: 16)!
 
-    /// For `etas`
-    static let ev1 = BigInt("699be3b8c6870965e5bf892ad5d2cc7b0e85a117402dfd83b7f4a947e02d978498255a2aaec0ac627b5afbdf1bf1c90", radix: 16)!
-    /// For `etas`
-    static let ev2 = BigInt("8157cd83046453f5dd0972b6e3949e4288020b5b8a9cc99ca07e27089a2ce2436d965026adad3ef7baba37f2183e9b5", radix: 16)!
-    /// For `etas`
-    static let ev3 = BigInt("ab1c2ffdd6c253ca155231eb3e71ba044fd562f6f72bc5bad5ec46a0b7a3b0247cf08ce6c6317f40edbc653a72dee17", radix: 16)!
-    /// For `etas`
-    static let ev4 = BigInt("aa404866706722864480885d68ad0ccac1967c7544b447873cc37e0181271e006df72162a3d3e0287bf597fbf7f8fc1", radix: 16)!
-
 }
 
 
@@ -189,17 +180,6 @@ extension Fp2 {
             (-rv1, rv1),
             (0, -1),
             (-rv1, -rv1)
-        ]
-        return tuples.map { Self(c0: Fp(value: $0.0), c1: Fp(value: $0.1)) }
-    }()
-    
-    // eta values, used for computing `sqrt(g(X1(t)))`
-    static let etas: [Self] = {
-        let tuples: [(BigInt, BigInt)] = [
-            (ev1, ev2),
-            (-ev2, ev1),
-            (ev3, ev4),
-            (-ev4, ev3),
         ]
         return tuples.map { Self(c0: Fp(value: $0.0), c1: Fp(value: $0.1)) }
     }()

@@ -40,9 +40,6 @@ extension G2.Curve {
     
     static let order = G1.Curve.order
     
-    /// Cofactor
-    static let cofactor = BigInt("5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5", radix: 16)!
-    
     static let generator = try! G2(
         point: .init(
             x: .init(
@@ -61,8 +58,6 @@ extension G2.Curve {
     static let x = G1.Curve.x
     
     static let b = Fp2((BigInt(4), BigInt(4)))
-    
-    static let hEff = BigInt("bc69f08f2ee75b3584c6a0ea91b352888e2a8e9145ad7689986ff031508ffe1329c2f178731db956d82bf015d1212b02ec0ec69d7477c1ae954cbc06689f6a359894c0adebbf6b4e8020005aaa95551", radix: 16)!
 }
 
 struct BadEncodingFlag: Error {}

@@ -21,7 +21,7 @@ struct G1: FiniteGroup, Equatable, Sendable {
         self.point =  try point.assertValidity()
     }
     
-    init(x: F, y: F, z: F = P1.zDefault) throws {
+    init(x: F, y: F, z: F = .one) throws {
         try self.init(point: .init(x: x, y: y, z: z))
     }
 }
@@ -42,9 +42,6 @@ extension G1.Curve {
     
     /// Order: `z⁴ − z² + 1`
     static let order = BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", radix: 16)!
-    
-    /// Cofactor: `(z - 1)²/3`
-    static let cofactor = BigInt("396c8c005555e1568c00aaab0000aaab", radix: 16)!
     
     /// The generator point of a the group `G1`, with coordinates
     /// x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507

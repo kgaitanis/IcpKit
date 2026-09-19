@@ -11,9 +11,7 @@ import BigInt
 /// A Finite algebraic field.
 protocol FiniteField: Field {
     static var order: BigInt { get }
-    static var maxBits: Int { get }
 }
 extension FiniteField {
     var order: BigInt { Self.order }
-    static var maxBits: Int { Self.order.bitWidthIgnoreSign }
 }

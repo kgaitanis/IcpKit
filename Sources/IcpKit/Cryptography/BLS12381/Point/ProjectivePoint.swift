@@ -57,7 +57,6 @@ where Affine == AffinePoint<F> {
     func doubled() -> Self
     
     /// Converts Projective point to default (x, y) coordinates.
-    /// Can accept precomputed Z^-1 - for example, from invertBatch.
     ///
     /// Default implementation provided.
     func toAffine(invertedZ: F?) throws -> AffinePoint<F>
@@ -114,25 +113,12 @@ extension ProjectivePoint {
     }
     
     /// Converts Projective point to default (x, y) coordinates.
-    /// Can accept precomputed Z^-1 - for example, from invertBatch.
     func toAffine(invertedZ: F? = nil) throws -> Affine {
         let invZ = try invertedZ ?? z.inverted()
         guard !invZ.isZero else {
             throw ProjectivePointError.failedToConvertToAffinePointInverted_Z_cannotBeZero
         }
         return Affine(x: x * invZ, y: y * invZ)
-    }
-    
-    static func toAffineBatch(points: [some ProjectivePoint<F>]) throws -> [AffinePoint<F>] {
-        let toInv = try BLS.generateInvertedBatch(
-            fieldType: F.self,
-            numbers: points.map { $0.z }
-        )
-        return try points.enumerated().map({ i, p in try p.toAffine(invertedZ: toInv[i]) })
-    }
-    
-    static func normalizeZ(points: [Self]) throws -> [Self] {
-        try toAffineBatch(points: points).map(Self.init(affine:))
     }
     
     /// http://hyperelliptic.org/EFD/g1p/auto-shortw-projective.html#doubling-dbl-1998-cmo-2
@@ -247,12 +233,9 @@ enum ProjectivePointError: Swift.Error, Equatable, CustomStringConvertible {
     case failedToConvertToAffinePointInverted_Z_cannotBeZero
     case invalidScalarMustBeLargerThanZero
     case invalidScalarMustNotBeLargerThanOrder
-    
-    case internalErrorPointAlreadyHasPrecomputes
-    
     case invalidByteCount(
-        expectedCompressed: Int = BLS.publicKeyCompressedByteCount,
-        orUncompressed: Int = BLS.publicKeyCompressedByteCount * 2,
+        expectedCompressed: Int,
+        orUncompressed: Int,
         butGot: Int
     )
     case invalidCompressedPoint
@@ -266,7 +249,6 @@ extension ProjectivePointError {
         case .failedToConvertToAffinePointInverted_Z_cannotBeZero: return "failedToConvertToAffinePointInverted_Z_cannotBeZero"
         case .invalidScalarMustBeLargerThanZero: return "invalidScalarMustBeLargerThanZero"
         case .invalidScalarMustNotBeLargerThanOrder: return "invalidScalarMustNotBeLargerThanOrder"
-        case .internalErrorPointAlreadyHasPrecomputes: return "internalErrorPointAlreadyHasPrecomputes"
         case .invalidByteCount: return "invalidByteCount"
         case .invalidCompressedPoint: return "invalidCompressedPoint"
         case .invalidPointNotOnCurveFp: return "invalidPointNotOnCurveFp"

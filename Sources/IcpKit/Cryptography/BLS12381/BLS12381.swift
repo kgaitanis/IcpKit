@@ -100,8 +100,6 @@ extension BLS {
     
     /// `S_bit`, sign bit for serialization flag
     static let exp2_383 = exp2_382 * 2
-    
-    static let publicKeyCompressedByteCount = G1.compressedDataByteCount
 }
 
 
@@ -311,113 +309,6 @@ extension BLS {
     ///     12. return substr(uniform_bytes, 0, len_in_bytes)
     ///
     /// [reference]: https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#name-expand_message_xmd-2
-    static let p²Minus9div16: BigInt = {
-        (G1.Curve.P.power(2) - 9) / 16
-    }()
-    
-    // Does not return a square root.
-    // Returns uv⁷ * (uv¹⁵)^((p² - 9) / 16) * root of unity
-    // if valid square root is found
-    static func sqrtDivFp2(u: Fp2, v: Fp2) throws -> (success: Bool, sqrtCandidateOrGamma: Fp2) {
-        let v⁷ = try v.pow(n: 7)
-        let uv⁷ = u * v⁷
-        let uv¹⁵ = uv⁷ * v⁷ * v
-        let gamma = try uv¹⁵.pow(n: p²Minus9div16) * uv⁷
-        var success = false
-        var result = gamma
-      
-        let positiveRootsOfUnity = Fp2.rootsOfUnity.prefix(4)
-
-        // Constant-time routine, so we do not early-return.
-        for root in positiveRootsOfUnity {
-            // Valid if (root * gamma)² * v - u == 0
-            let candidate = root * gamma
-            // Constant-time routine, so we do not early-return.
-            if try (candidate.pow(n: 2) * v - u).isZero && !success {
-                success = true
-                result = candidate
-            }
-            // Constant-time routine, so we do not early-return.
-        }
-  
-        return (success, sqrtCandidateOrGamma: result)
-    }
-    
-    
-    // Optimized SWU Map - Fp2 to G2': y² = x³ + 240i * x + 1012 + 1012i
-    // Found in Section 4 of https://eprint.iacr.org/2019/403
-    // Note: it's constant-time
-    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#appendix-G.2.3
-    static func mapToCurveSimple_swu_9mod16(t: Fp2) throws -> SimpleProjectivePoint<Fp2> {
-        let iso_3_a = Fp2(c0: .zero, c1: .init(value: 240))
-        let iso_3_b = Fp2(c0: .init(value: 1012), c1: .init(value: 1012))
-        let iso_3_z = Fp2(c0: .init(value: -2), c1: .init(value: -1))
-        let t² = try t.pow(n: 2)
-        let iso_3_z_t2 = iso_3_z * t²
-        let ztzt = iso_3_z_t2 + (try iso_3_z_t2.pow(n: 2)) // (Z * t² + Z² * t⁴)
-        var denominator = iso_3_a * (ztzt.negated()) // -a(Z * t² + Z² * t⁴)
-        var numerator = iso_3_b * (ztzt + Fp2.one) // b(Z * t² + Z² * t⁴ + 1)
-        
-        // Exceptional case
-        if denominator.isZero {
-            denominator = iso_3_z * iso_3_a
-        }
-        
-        let D² = try denominator.pow(n: 2)
-        
-        /// aka `v`
-        let D³ = try denominator.pow(n: 3)
-        
-        let N³ = try numerator.pow(n: 3)
-        // u = N³ + a * N * D² + b * D³
-        var u = N³ + (iso_3_a * numerator * D²) + (iso_3_b * D³)
-      
-        // Attempt y = sqrt(u / v)
-        var y: Fp2!
-        let sqrtCandidateOrGammaSuccessOrNot = try sqrtDivFp2(u: u, v: D³)
-        let success = sqrtCandidateOrGammaSuccessOrNot.success
-        let sqrtCandidateOrGamma = sqrtCandidateOrGammaSuccessOrNot.sqrtCandidateOrGamma
-        if success {
-            y = sqrtCandidateOrGamma
-        }
-        
-        // Handle case where (u / v) is not square
-        let t³ = try t.pow(n: 3)
-        let sqrtCandidateX1 = sqrtCandidateOrGamma * t³
-        
-        // u(x1) = Z³ * t⁶ * u(x0)
-        u = try iso_3_z_t2.pow(n: 3) * u
-        var success2 = false
-        
-        // Constant-time routine, so we do not early-return.
-        for eta in Fp2.etas {
-            // Valid solution if (eta * sqrt_candidate(x1))² * v - u == 0
-            let etaSqrtCandidate = eta * sqrtCandidateX1
-            let temp = try etaSqrtCandidate.pow(n:2) * D³ - u
-            // Constant-time routine, so we do not early-return.
-            if temp.isZero && !success && !success2 {
-                y = etaSqrtCandidate
-                success2 = true
-            }
-            // Constant-time routine, so we do not early-return.
-        }
-        
-        guard success || success2 else {
-            struct HashToCurveOptimizedSWUFailure: Error {}
-            throw HashToCurveOptimizedSWUFailure()
-        }
-        
-        if success2 {
-            numerator *= iso_3_z_t2
-        }
-
-        if t.sgn0() != y.sgn0() {
-            y.negate()
-        }
-        y *= denominator
-        return .init(x: numerator, y: y, z: denominator)
-    }
-
     // Calculates bilinear pairing
     static func pairing(
         g1: G1,
@@ -434,16 +325,3 @@ extension BLS {
     
 }
 struct NoPairingExistsAtPointOfInfinity: Error {}
-
-/// Octet Stream to Integer
-///
-/// Defined as: `BigInt(sign: .plus, magnitude: BigUInt(data))`
-///
-/// Note that we get the wrong result if we do: `BigInt(data)`
-///
-/// Effectively what we are doing is this
-///
-///     data.reduce(into: BigInt(0)) {
-///         $0 <<= 8
-///         $0 += BigInt($1)
-///     }
