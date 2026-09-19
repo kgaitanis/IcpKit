@@ -17,8 +17,6 @@ Originally developed at [Bity SA](https://bity.com) with support from the [DFini
 ## License
 **MIT License** is applicable for all Swift Code (see [LICENSE](LICENSE)).
 
-The BLS12381 Rust Library is licensed by Levi Feldman (see [LICENSE](Sources/bls12381/LICENSE)).
-
 ## Installation
 
 ### Swift Package Manager

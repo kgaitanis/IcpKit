@@ -11,13 +11,12 @@
 - `Sources/Candid`: Candid types, values, parser, encoder/decoder, and binary serialisation.
 - `Sources/DAB`: DAB token/NFT services and generated canister bindings.
 - `Sources/CodeGenerator`: command-line generator for Swift code from `.did` files.
-- `Sources/bls12381`, `include/Bls12381.h`, `include/module.modulemap`: existing Rust BLS12-381 verifier source and C module headers. The SwiftPM target/linking entries are currently commented in `Package.swift`.
 - `Tests/IcpKitTests`, `Tests/CandidTests`, `Tests/CodeGeneratorTests`, `Tests/DABTests`: package test targets.
 - `Examples`: Xcode example apps.
 
 ## BLS Migration Goal
 - Replace the Rust BLS12-381 signature verifier with an entirely Swift implementation.
-- Remove Rust build and linking infrastructure only after Swift verification is validated.
+- Remove Rust build and linking infrastructure after Swift verification is validated.
 - Preserve the existing verification API: `ICPCryptography.verifyBlsSignature(message:publicKey:signature:)`.
 - Preserve required cryptographic behavior: compressed encodings, certificate domain separation, hash-to-curve behavior, subgroup checks, pairing verification, and invalid-signature errors.
 - Keep certificate delegation and unrelated refactoring outside this migration unless explicitly requested.

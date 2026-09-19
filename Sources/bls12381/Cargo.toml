@@ -1,9 +1,0 @@
-[package]
-name = "bls12381"
-version = "0.1.0"
-authors = ["levi <levifeldman37@gmail.com>", "kosta <kosta@bity.com>"]
-edition = "2018"
-
-[lib]
-name = "bls12381"
-crate-type = ["staticlib"]

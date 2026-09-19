@@ -1,4 +1,0 @@
-[workspace]
-members = [
-    "Sources/bls12381"
-]
