@@ -17,6 +17,15 @@ public extension ICPCryptography {
         return extendedSignature
     }
     
+    /// Verifies an ICP BLS signature.
+    ///
+    /// This uses the ICP BLS12-381 ciphersuite
+    /// `BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_`. The signature must be a
+    /// 48-byte compressed G1 point and the public key must be a 96-byte
+    /// compressed G2 point.
+    ///
+    /// - Throws: `ICPStateCertificateError.invalidSignature` when an input is
+    ///   malformed, outside the required subgroup, or fails verification.
     static func verifyBlsSignature(message: any DataProtocol, publicKey: any DataProtocol, signature: any DataProtocol) throws {
         try BlsSignatureVerifier().verify(message: message, publicKey: publicKey, signature: signature)
     }
