@@ -15,8 +15,7 @@ import BigInt
 ///
 /// We add `z` because we work with projective coordinates instead of affine `x-y`,
 /// which results in faster performance.
-struct P1: ProjectivePoint, Equatable {
-    let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self>
+struct P1: ProjectivePoint, Equatable, Sendable {
     let x: Fp
     let y: Fp
     let z: Fp
@@ -25,7 +24,6 @@ struct P1: ProjectivePoint, Equatable {
         self.x = x
         self.y = y
         self.z = z
-        self.__storageForPrecomputes = .init()
     }
 }
 

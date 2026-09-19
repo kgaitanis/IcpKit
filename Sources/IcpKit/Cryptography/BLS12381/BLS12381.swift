@@ -26,7 +26,9 @@ enum Isogeny {
         }
         init(bigInts: [BigInt]) throws {
             guard bigInts.count == Self.count*2 else { throw WrongLength() }
-            try self.init(elements: bigInts.chunks(ofCount: 2).map(Fp2.init))
+            let elements = stride(from: 0, to: bigInts.count, by: 2)
+                .map { Fp2(c0: bigInts[$0], c1: bigInts[$0 + 1]) }
+            try self.init(elements: elements)
         }
         init(arrayLiteral bigInts: BigInt...) {
             try! self.init(bigInts: bigInts)
@@ -310,53 +312,6 @@ extension BLS {
     ///     12. return substr(uniform_bytes, 0, len_in_bytes)
     ///
     /// [reference]: https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#name-expand_message_xmd-2
-    static func expandMessageXMD(
-        toLength outputByteCount: Int,
-        message: Data,
-        domainSeperationTag: DomainSeperationTag
-    ) async throws -> Data {
-        
-        let bInBytes = SHA256.byteCount
-        let rInBytes = bInBytes * 2
-        let ell = Int(ceil(Double(outputByteCount) / Double(bInBytes)))
-        guard ell <= 255 else {
-            struct InvalidXMDLength: Error {}
-            throw InvalidXMDLength()
-        }
-        
-        let dst = domainSeperationTag.dataNoLongerThan255ElseHashed(mode: .expandMessageXMD)
-
-        return await Task {
-            let dstPrime = dst + i2osp(dst.count, 1)
-            let zPad = i2osp(0, rInBytes)
-            let outputByteCountData = i2osp(outputByteCount, 2)
-            let messagePrime = Data(SHA256.hash(data: zPad + message + outputByteCountData + i2osp(0, 1) + dstPrime))
-            
-            var b: [Data] = []
-            
-            let firstB = Data(
-                SHA256.hash(
-                    data: messagePrime + i2osp(1, 1) + dstPrime
-                )
-            )
-            
-            b.append(firstB)
-            for i in 1...ell {
-                let hashInputRHS = b.last!
-                let hashInput0 = Data(zip(messagePrime, hashInputRHS).map { $0 ^ $1 })
-                let hashInput = hashInput0 + i2osp(i + 1, 1) + dstPrime
-                let hash = Data(SHA256.hash(
-                    data: hashInput
-                ))
-                b.append(hash)
-            }
-            let pseudoRandomBytes: Data = b.reduce(Data(), +)
-            assert(pseudoRandomBytes.count >= outputByteCount)
-            let outResult = pseudoRandomBytes.prefix(outputByteCount)
-            return outResult
-        }.result.get()
-    }
-    
     static let p²Minus9div16: BigInt = {
         (G1.Curve.P.power(2) - 9) / 16
     }()
@@ -464,35 +419,6 @@ extension BLS {
         return .init(x: numerator, y: y, z: denominator)
     }
 
-    static func hashToField(
-        message: Data,
-        elementCount: Int,
-        config: HashToFieldConfig = .defaultForHashToG2
-    ) async throws -> [[BigInt]] {
-        let L = config.L
-        let byteCount = L * elementCount * config.m
-        var pseudoRandomBytes = message
-        if config.expand {
-            pseudoRandomBytes = try await expandMessageXMD(
-                toLength: byteCount,
-                message: message,
-                domainSeperationTag: config.domainSeperationTag
-            )
-        }
-        var u: [[BigInt]] = []
-        for i in 0..<elementCount {
-            var e: [BigInt] = []
-            for j in 0..<config.m {
-                let elmOffset = L * (j + i * config.m)
-                let tv = pseudoRandomBytes[elmOffset..<elmOffset+L]
-                let eElement = mod(a: os2ip(tv), b: config.p)
-                e.append(eElement)
-            }
-            u.append(e)
-        }
-        return u
-    }
-    
     // Calculates bilinear pairing
     static func pairing(
         g1: G1,
@@ -528,23 +454,14 @@ func os2ip(_ data: Data) -> BigInt {
 
 struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
     let _data: Data
-    enum Mode {
-        case expandMessageXOF
-        case expandMessageXMD
-    }
     
     /// https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#section-5.4.3
-    func dataNoLongerThan255ElseHashed(mode: Mode = .expandMessageXMD) -> Data {
+    func dataNoLongerThan255ElseHashed() -> Data {
         if _data.count <= 255 {
             return _data
         } else {
             let prefixData = "H2C-OVERSIZE-DST-".data(using: .ascii)!
-            switch mode {
-            case .expandMessageXMD:
-                return Data(SHA256.hash(data: prefixData + _data))
-            case .expandMessageXOF:
-                fatalError("Unsupported")
-            }
+            return Data(SHA256.hash(data: prefixData + _data))
         }
     }
     init(data: Data) {
@@ -560,15 +477,9 @@ struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
     init(stringLiteral value: String) {
         self.init(value)
     }
-    
-    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-8.8.2
-    static let g2Basic: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"
-    
-    /// Proof of possession
-    static let g2Pop: Self = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_"
 }
 
-struct HashToFieldConfig: Equatable {
+struct HashToFieldConfig: Equatable, Sendable {
     /// Domain seperation tag, aka `DST`.
     let domainSeperationTag: DomainSeperationTag
     /// The characteristic of F, where `F` is a finite field of *characteristic* `p` and *order* `q = p^m`
@@ -582,26 +493,17 @@ struct HashToFieldConfig: Equatable {
     /// [reference]: https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-5.1
     let k: Int
     
-    /// option to use a message that has already been processed by
-    /// expand_message_xmd
-    let expand: Bool
-    
     init(
-        domainSeperationTag: DomainSeperationTag = .g2Basic,
-        p: BigInt = G1.Curve.P,
-        m: Int = 2,
-        k: Int = 128,
-        expand: Bool = true
+        domainSeperationTag: DomainSeperationTag,
+        p: BigInt,
+        m: Int,
+        k: Int
     ) {
         self.domainSeperationTag = domainSeperationTag
         self.p = p
         self.m = m
         self.k = k
-        self.expand = expand
     }
-}
-extension HashToFieldConfig {
-    static let defaultForHashToG2 = Self()
 }
 
 extension HashToFieldConfig {

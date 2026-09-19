@@ -13,7 +13,7 @@ import BigInt
 /// Element of the cyclic subgroup of `E(GF(p^k))` of `order r`.
 /// This element has a with a projective point `(x, y , z)` in the `Fp2` field (`E(GF(p^k))`),
 /// that **guaranteed** be on the curve.
-struct G2: FiniteGroup, Equatable {
+struct G2: FiniteGroup, Equatable, Sendable {
     
     let point: Point
     

@@ -8,15 +8,6 @@
 import Foundation
 import BigInt
 
-
-final class StorageOfPrecomputedProjectivePoints<Point: ProjectivePoint> {
-    var pointsDictionary: [Int: [Point]]
-    init(pointsDictionary: [Int: [Point]] = [:]) {
-        self.pointsDictionary = pointsDictionary
-    }
-}
-
-
 // MARK: ProjectivePoint
 
 /// A projective point over some *finite* **field** `F`, has three components
@@ -34,9 +25,6 @@ where Affine == AffinePoint<F> {
     /// The finite field of which x, y, z are all elements.
     associatedtype F: FiniteField
     associatedtype Affine
-    
-    /// Intended for internal use, used to increase performance.
-    var __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self> { get }
     
     /// Checks if this point is indeed on the curve.
     func isOnCurve() -> Bool
@@ -240,103 +228,8 @@ extension ProjectivePoint {
     }
 }
 
-// MARK: Precompute
-extension ProjectivePoint {
-    
-    mutating func calcMultiplyPrecomputes(w: Int) throws {
-        guard __storageForPrecomputes.pointsDictionary[w] == nil else {
-            throw ProjectivePointError.internalErrorPointAlreadyHasPrecomputes
-        }
-        __storageForPrecomputes.pointsDictionary[w] = try Self.normalizeZ(
-            points: precompute(window: w)
-        )
-    }
-    
-    mutating func clearMultiplyPrecomputes() {
-        __storageForPrecomputes.pointsDictionary = [:]
-    }
-    
-    // Constant time multiplication. Uses wNAF.
-    func multiplyPrecomputed(scalar: BigInt) throws -> Self {
-        try wNAF(n: Self.validate(scalar: scalar))
-    }
-}
-
 // MARK: Private
 private extension ProjectivePoint {
-    
-    func wNAF(n: BigInt) -> Self /*, Self)*/ {
-        var n = n
-        let W: Int
-        let precomputes: [Self]
-        if let pre = __storageForPrecomputes.pointsDictionary.first {
-            precondition(__storageForPrecomputes.pointsDictionary.count == 1, "Cyon: unsure about translation from Noble-Bls12-381, it looks like it only supports one key value?")
-            W = pre.key
-            precomputes = pre.value
-        } else {
-            W = 1
-            precomputes = precompute(window: W)
-        }
-        var p = Self.zero
-        var f = Self.zero
-        
-        // Split scalar by W bits, last window can be smaller
-        let windows = Int(ceil(Double(F.maxBits) / Double(W)))
-        // 2^(W-1), since we use wNAF, we only need W-1 bits
-        let windowSize = 1 << (W - 1)
-        
-        let mask = BigInt(windowSize) // Create mask with W ones: 0b1111 for W=4 etc.
-        let maxNumber = 1 << W // 2 ** W;
-        let shiftBy = BigInt(W)
-        
-        for window in 0..<windows {
-            let offset = window * windowSize
-            // Extract W bits.
-            var wbits = Int(n & mask)
-            // Shift number by W bits.
-            n >>= shiftBy
-            
-            // If the bits are bigger than max size, we'll split those.
-            // +224 => 256 - 32
-            if (wbits > windowSize) {
-                wbits -= maxNumber
-                n += 1
-            }
-            
-            // Check if we're onto Zero point.
-            // Add random point inside current window to f.
-            if (wbits == 0) {
-                f += (window.isMultiple(of: 2) ? precomputes[offset].negated() : precomputes[offset])
-            } else {
-                let cached = precomputes[offset + abs(wbits) - 1]
-                p += (wbits < 0 ? cached.negated() : cached)
-            }
-        }
-//        return (p, f)
-        return p
-    }
-    
-    func precompute(window w: Int) -> [Self] {
-        // Split scalar by W bits, last window can be smaller
-        let windows = Int(ceil(Double(F.maxBits) / Double(w)))
-        // 2^(W-1), since we use wNAF, we only need W-1 bits
-        let windowSize = 1 << (w - 1)
-        
-        var points: [Self] = []
-        var p = self
-        var base = p
-        for _ in 0..<windows {
-            base = p
-            points.append(base)
-            for _ in 1..<windowSize {
-                base += p
-                points.append(base)
-            }
-            p = base.doubled()
-        }
-        return points
-    }
-
     static func validate(scalar: BigInt) throws -> BigInt {
         guard scalar > 0 else {
             throw ProjectivePointError.invalidScalarMustBeLargerThanZero

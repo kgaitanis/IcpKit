@@ -7,15 +7,12 @@
 
 import Foundation
 
-struct P2: ProjectivePoint {
+struct P2: ProjectivePoint, Sendable {
    
     let x: Fp2
     let y: Fp2
     let z: Fp2
-    
-    let __storageForPrecomputes: StorageOfPrecomputedProjectivePoints<Self> = .init()
-    private let simpleStorageOfPrecomputedPoints: StorageOfPrecomputedSimplePoints = .init()
-    
+
     init(x: Fp2, y: Fp2, z: Fp2 = .one) {
         self.x = x
         self.y = y
@@ -24,43 +21,11 @@ struct P2: ProjectivePoint {
 }
 
 extension P2 {
-
-    init(privateKey: PrivateKey) {
-        fatalError()
-    }
-    
-}
-
-extension P2 {
     typealias F = Fp2
     static let zero = Self(x: .one, y: .one, z: .zero)
 }
 
-
 extension P2 {
-    
-    /// Encodes byte string to elliptic curve
-      /// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3
-    static func hashToCurve(
-        message: Data,
-        hashToFieldConfig: HashToFieldConfig = .defaultForHashToG2
-    ) async throws -> Self {
-        let u = try await BLS.hashToField(
-            message: message,
-            elementCount: 2,
-            config: hashToFieldConfig
-        )
-
-        let t0 = Fp2(c0: u[0][0], c1: u[0][1])
-        let Q0 = try Self(simpleProjective: BLS.isogenyMapG2(jacobiPoint: BLS.mapToCurveSimple_swu_9mod16(t: t0)))
-        let t1 = Fp2(c0: u[1][0], c1: u[1][1])
-        let Q1 = try Self(simpleProjective: BLS.isogenyMapG2(jacobiPoint: BLS.mapToCurveSimple_swu_9mod16(t: t1)))
-        
-        let R = Q0 + Q1
-        let P = try R.clearCofactor()
-        return P
-    }
-    
     /// Checks for equation `y² = x³ + b`
     func isOnCurve() -> Bool {
         do {
@@ -150,30 +115,7 @@ extension P2 {
     }
     
     func pairingPrecomputes() throws -> [SimpleProjectivePoint<Fp2>] {
-        if let precomputes = self.simpleStorageOfPrecomputedPoints.points {
-            return precomputes
-        }
         let affine = try toAffine()
-        let precomputes = try BLS.calcPairingPrecomputes(x: affine.x, y: affine.y)
-        
-        self.simpleStorageOfPrecomputedPoints.points = precomputes
-        return precomputes
-    }
-}
-
-extension P2 {
-    func toSignature() -> Signature {
-        fatalError()
-    }
-
-}
-
-extension P2 {
-    
-    private final class StorageOfPrecomputedSimplePoints {
-        fileprivate var points: [SimpleProjectivePoint<Fp2>]?
-        fileprivate init(points: [SimpleProjectivePoint<Fp2>]? = nil) {
-            self.points = points
-        }
+        return try BLS.calcPairingPrecomputes(x: affine.x, y: affine.y)
     }
 }

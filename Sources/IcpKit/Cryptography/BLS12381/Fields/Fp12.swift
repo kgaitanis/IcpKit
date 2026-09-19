@@ -8,7 +8,7 @@
 import BigInt
 import Foundation
 
-struct Fp12: Field {
+struct Fp12: Field, Sendable {
     let c0: Fp6
     let c1: Fp6
 }

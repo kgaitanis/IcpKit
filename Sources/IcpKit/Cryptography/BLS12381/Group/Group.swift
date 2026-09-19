@@ -30,23 +30,11 @@ extension EllipticCurve {
     static var b: BigInt { order }
 }
 
-protocol DataSerializable {
-    func toData(compress: Bool) -> Data
-}
-
-protocol DataDeserializable {
-    init(bytes: some ContiguousBytes) throws
-    init(uncompressedData: Data) throws
-    init(compressedData: Data) throws
-}
-
 protocol FiniteGroup:
     Equatable,
     ThrowingSignedNumeric,
     ThrowingAdditiveArtithmetic,
-    ThrowingMultipliableByScalarArtithmetic,
-    DataSerializable,
-    DataDeserializable
+    ThrowingMultipliableByScalarArtithmetic
 where Curve.Group == Self {
     associatedtype Curve: EllipticCurve
     associatedtype Point: ProjectivePoint
@@ -60,6 +48,10 @@ where Curve.Group == Self {
     
     static var compressedDataByteCount: Int { get }
     static var uncompressedDataByteCount: Int { get }
+    init(bytes: some ContiguousBytes) throws
+    init(uncompressedData: Data) throws
+    init(compressedData: Data) throws
+    func toData(compress: Bool) -> Data
 }
 
 extension FiniteGroup {

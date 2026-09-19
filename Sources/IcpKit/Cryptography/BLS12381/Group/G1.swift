@@ -14,7 +14,7 @@ import BigInt
 /// Element of the cyclic subgroup of `E(GF(p))` of `order r`. This element has a
 /// projective point `(x, y, z)` in the `Fp` field (`E(GF(p))`),
 /// that **guaranteed** be on the curve.
-struct G1: FiniteGroup, Equatable {
+struct G1: FiniteGroup, Equatable, Sendable {
     let point: Point
     
     init(point: Point) throws {

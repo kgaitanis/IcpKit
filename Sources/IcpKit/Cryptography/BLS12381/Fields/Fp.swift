@@ -9,7 +9,7 @@ import Foundation
 import BigInt
 
 /// Finite field over `p`.
-struct Fp: FiniteField {
+struct Fp: FiniteField, Sendable {
     let value: BigInt
     init(value: BigInt) {
         self.value = mod(a: value, b: Self.order)//value % Self.order

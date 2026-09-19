@@ -9,7 +9,7 @@ import Foundation
 import BigInt
 
 /// Fp₂ over complex plane
-struct Fp2: FiniteField {
+struct Fp2: FiniteField, Sendable {
     /// Real part, aka `c0`
     let c0: Fp
     

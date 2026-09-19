@@ -69,7 +69,7 @@ extension BLS {
         let ell = Int(ceil(Double(outputByteCount) / Double(bInBytes)))
         precondition(ell <= 255)
 
-        let dst = domainSeperationTag.dataNoLongerThan255ElseHashed(mode: .expandMessageXMD)
+        let dst = domainSeperationTag.dataNoLongerThan255ElseHashed()
         let dstPrime = dst + i2osp(dst.count, 1)
         let zPad = i2osp(0, rInBytes)
         let outputByteCountData = i2osp(outputByteCount, 2)
