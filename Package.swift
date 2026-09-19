@@ -16,7 +16,6 @@ let package = Package(
         .library(name: "Candid", targets: ["Candid"]),
         .library(name: "DAB", targets: ["DAB"]),
         .executable(name: "CodeGenerator", targets: ["CodeGenerator"]),
-        //.library(name: "Bls12381", targets: ["bls12381"])
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -35,12 +34,7 @@ let package = Package(
                 "Candid",
                 "BigInt",
                 .product(name: "secp256k1", package: "secp256k1.swift"),
-//                .target(name: "bls12381"),
             ]
-//            cSettings: [.headerSearchPath("Sources/bls12381/include"),
-//                        .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])],
-//            cxxSettings: [.headerSearchPath("Sources/bls12381/include"),
-//                          .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])]
         ),
         .target(
             name: "Candid",
@@ -62,10 +56,6 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
-//        .binaryTarget(
-//            name: "bls12381",
-//            path: "Binaries/Bls12381.xcframework"
-//        ),
         .testTarget(
             name: "IcpKitTests",
             dependencies: ["IcpKit",]

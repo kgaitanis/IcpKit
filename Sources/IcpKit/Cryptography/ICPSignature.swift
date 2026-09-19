@@ -18,34 +18,6 @@ public extension ICPCryptography {
     }
     
     static func verifyBlsSignature(message: any DataProtocol, publicKey: any DataProtocol, signature: any DataProtocol) throws {
-        // TODO: Link to Rust library
-        return
-//        guard let _ = bls_instance else {
-//            throw BlsRustError.notInstantiated
-//        }
-//        try Data(signature).withUnsafeBytes { signaturePointer in
-//            try Data(message).withUnsafeBytes { messagePointer in
-//                try Data(publicKey).withUnsafeBytes { publicKeyPointer in
-//                    let i = bls_verify(signature.count, signaturePointer.baseAddress,
-//                                       message.count, messagePointer.baseAddress,
-//                                       publicKey.count, publicKeyPointer.baseAddress)
-//                    guard i == 1 else {
-//                        throw ICPStateCertificateError.invalidSignature
-//                    }
-//                }
-//            }
-//        }
+        try BlsSignatureVerifier().verify(message: message, publicKey: publicKey, signature: signature)
     }
-    
-//    private static let bls_instance = BlsInstance()
 }
-
-//private enum BlsRustError: Error {
-//    case notInstantiated
-//}
-//
-//private class BlsInstance {
-//    init?() {
-//        guard bls_instantiate() == 1 else { return nil }
-//    }
-//}

@@ -1,4 +1,0 @@
-module bls12381 {
-  header "Bls12381.h"
-  export *
-}

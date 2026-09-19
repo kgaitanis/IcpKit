@@ -119,7 +119,6 @@ final class ICPCryptographyTests: XCTestCase {
     }
     
     func testBlsSignatureVerification() throws {
-        throw XCTSkip("This test is temporarily disabled")
         let publicKey = ICPStateCertificate.icpRootRawPublicKey
         XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
             message: Data.fromHex("0d69632d73746174652d726f6f74d37ba673431b273a9db85cc2dcf236496decd32c2ba7d160b19f74c1a3e336a3")!,
