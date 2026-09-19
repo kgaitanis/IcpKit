@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  FiniteField.swift
 //  
 //
 //  Created by Alexander Cyon on 2022-09-28.
