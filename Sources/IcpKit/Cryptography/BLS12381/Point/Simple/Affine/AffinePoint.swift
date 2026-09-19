@@ -16,17 +16,6 @@ struct AffinePoint<F: Field>: Equatable {
     }
 }
 
-extension AffinePoint {
-    func toString(radix: Int = 16, pad: Bool = false) -> String {
-        """
-        Affine(
-            x: \(x.toString(radix: radix, pad: pad)),
-            y: \(y.toString(radix: radix, pad: pad)
-        )
-        """
-    }
-}
-
 extension AffinePoint where F == Fp2 {
     // Ψ(P) endomorphism
     func psi() -> Self {

@@ -34,15 +34,6 @@ protocol DataSerializable {
     func toData(compress: Bool) -> Data
 }
 
-extension DataSerializable {
-    func toHex(
-        compress: Bool = true,
-        hexEncoding: Data.HexEncodingOptions = []
-    ) -> String {
-        toData(compress: compress).hex(options: hexEncoding)
-    }
-}
-
 protocol DataDeserializable {
     init(bytes: some ContiguousBytes) throws
     init(uncompressedData: Data) throws
@@ -51,7 +42,6 @@ protocol DataDeserializable {
 
 protocol FiniteGroup:
     Equatable,
-    CustomToStringConvertible,
     ThrowingSignedNumeric,
     ThrowingAdditiveArtithmetic,
     ThrowingMultipliableByScalarArtithmetic,
@@ -123,8 +113,4 @@ extension FiniteGroup {
     var x: Point.F { point.x }
     var y: Point.F { point.y }
     var z: Point.F { point.z }
-    
-    func toString(radix: Int, pad: Bool) -> String {
-        point.toString(radix: radix, pad: pad)
-    }
 }

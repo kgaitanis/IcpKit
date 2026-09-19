@@ -8,7 +8,7 @@
 import Foundation
 import BigInt
 
-struct Fp6: Field, CustomDebugStringConvertible {
+struct Fp6: Field {
     let c0: Fp2
     let c1: Fp2
     let c2: Fp2
@@ -56,20 +56,6 @@ extension Fp6 {
             )
         )
     }
-}
-
-extension Fp6 {
-    
-    func toString(radix: Int, pad: Bool) -> String {
-        """
-        \(Self.self)(
-            c0: \(c0.toString(radix: radix, pad: pad)),
-            c1: \(c1.toString(radix: radix, pad: pad))
-            c2: \(c2.toString(radix: radix, pad: pad))
-        )
-        """
-    }
-
 }
 
 enum Frobenius {

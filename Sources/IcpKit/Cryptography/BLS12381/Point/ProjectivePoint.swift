@@ -26,7 +26,6 @@ final class StorageOfPrecomputedProjectivePoints<Point: ProjectivePoint> {
 /// When mapping into affine point we multiply the X and Y respectively
 /// with the inverse of `Z`. `Xa=Xp/Zp, Ya=Yp/Zp`
 protocol ProjectivePoint<F>:
-    CustomToStringConvertible,
     SignedNumeric_,
     ThrowingMultipliableByScalarArtithmetic,
     AdditiveArithmetic,
@@ -75,46 +74,11 @@ where Affine == AffinePoint<F> {
     /// Default implementation provided.
     func toAffine(invertedZ: F?) throws -> AffinePoint<F>
     
-    /// String representation of this point.
-    ///
-    /// Default implementation provided.
-    func toString(radix: Int, pad: Bool) -> String
-
 }
 
 extension ProjectivePoint {
     mutating func double() {
         self = self.doubled()
-    }
-}
-
-// MARK: Debugging
-extension ProjectivePoint {
-    func toString(radix: Int = 16, pad: Bool = false) -> String {
-        """
-        \(Self.self)(
-            x: \(x.toString(radix: radix, pad: pad)),
-            y: \(y.toString(radix: radix, pad: pad)),
-            z: \(z.toString(radix: radix, pad: pad))
-        )
-        """
-    }
-    
-    var description: String {
-//        toDecimalString(pad: false)
-        toHexString(pad: true)
-    }
-    
-    func toDecimalString(pad: Bool = false) -> String {
-        toString(radix: 10, pad: pad)
-    }
-    
-    func toHexString(pad: Bool = true) -> String {
-        toString(radix: 16, pad: pad)
-    }
-    
-    var debugDescription: String {
-        toHexString(pad: true)
     }
 }
 

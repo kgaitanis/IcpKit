@@ -16,21 +16,6 @@ struct Fp: FiniteField {
     }
 }
 
-// MARK: CustomStringConvertible
-extension Fp {
-    
-    func toString(radix: Int = 16, pad: Bool) -> String {
-        _toString(
-            radix: radix,
-            pad: pad ? (radix == 16 ? Pad.toLength(96) : Pad.toLength(115)) : nil
-        )
-    }
-    
-    private func _toString(radix: Int = 16, pad: Pad?) -> String {
-        value.toString(radix: radix, pad: pad)
-    }
-}
-
 func mod(a: BigInt, b: BigInt) -> BigInt {
     let res = a % b
     return res >= 0 ? res : b + res

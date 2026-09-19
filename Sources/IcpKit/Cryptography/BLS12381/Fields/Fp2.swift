@@ -9,7 +9,7 @@ import Foundation
 import BigInt
 
 /// Fp₂ over complex plane
-struct Fp2: FiniteField, CustomDebugStringConvertible {
+struct Fp2: FiniteField {
     /// Real part, aka `c0`
     let c0: Fp
     
@@ -52,18 +52,6 @@ extension Fp2 {
     }
     var real: BigInt { c0.value }
     var imaginary: BigInt { c1.value }
-}
-
-extension Fp2 {
-    
-    func toString(radix: Int, pad: Bool) -> String {
-        """
-        \(Self.self)(
-            c0: \(c0.toString(radix: radix, pad: pad)),
-            c1: \(c1.toString(radix: radix, pad: pad))
-        )
-        """
-    }
 }
 
 extension Fp2 {

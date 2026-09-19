@@ -8,7 +8,7 @@
 import BigInt
 import Foundation
 
-struct Fp12: Field, CustomDebugStringConvertible {
+struct Fp12: Field {
     let c0: Fp6
     let c1: Fp6
 }
@@ -17,18 +17,6 @@ extension Fp12 {
     init<C>(coeffs: C) where C: Collection, C.Element == BigInt, C.Index == Int {
         precondition(coeffs.count == 12)
         self.init(c0: .init(coeffs: coeffs.prefix(6)), c1: .init(coeffs: coeffs.suffix(6)))
-    }
-}
-
-extension Fp12 {
-    
-    func toString(radix: Int, pad: Bool) -> String {
-        """
-        \(Self.self)(
-            c0: \(c0.toString(radix: radix, pad: pad)),
-            c1: \(c1.toString(radix: radix, pad: pad))
-        )
-        """
     }
 }
 

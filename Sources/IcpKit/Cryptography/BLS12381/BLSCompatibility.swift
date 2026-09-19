@@ -7,8 +7,6 @@
 import BigInt
 import Foundation
 
-extension BigInt: @unchecked Sendable {}
-
 extension Fp: @unchecked Sendable {}
 extension Fp2: @unchecked Sendable {}
 extension Fp6: @unchecked Sendable {}
@@ -17,22 +15,7 @@ extension P1: @unchecked Sendable {}
 extension P2: @unchecked Sendable {}
 extension G1: @unchecked Sendable {}
 extension G2: @unchecked Sendable {}
-extension DomainSeperationTag: @unchecked Sendable {}
 extension HashToFieldConfig: @unchecked Sendable {}
-
-extension Data {
-    struct HexEncodingOptions: OptionSet {
-        let rawValue: Int
-
-        init(rawValue: Int) {
-            self.rawValue = rawValue
-        }
-    }
-
-    func hex(options: HexEncodingOptions = []) -> String {
-        map { String(format: "%02x", $0) }.joined()
-    }
-}
 
 struct BitArray: Collection {
     typealias Index = Int

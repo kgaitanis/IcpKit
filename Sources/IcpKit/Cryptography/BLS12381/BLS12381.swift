@@ -533,10 +533,6 @@ struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
         case expandMessageXMD
     }
     
-    func toString(encoding: String.Encoding = .utf8) -> String {
-        String(data: _data, encoding: encoding)!
-    }
-    
     /// https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#section-5.4.3
     func dataNoLongerThan255ElseHashed(mode: Mode = .expandMessageXMD) -> Data {
         if _data.count <= 255 {

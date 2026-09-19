@@ -15,8 +15,7 @@ protocol Field:
     Numeric_,
     SignedNumeric_,
     DivisionArithmetic,
-    DivisibleByScalarArithmetic,
-    CustomToStringConvertible
+    DivisibleByScalarArithmetic
 {
     static var one: Self { get }
     

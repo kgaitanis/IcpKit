@@ -7,17 +7,12 @@
 
 import Foundation
 
-protocol GroupElementConveritible: CustomToStringConvertible, DataSerializable, DataDeserializable {
+protocol GroupElementConveritible: DataSerializable, DataDeserializable {
     associatedtype Group: FiniteGroup
     var groupElement: Group { get }
     init(groupElement: Group) throws
 }
 
-extension GroupElementConveritible {
-    func toString(radix: Int, pad: Bool) -> String {
-        groupElement.toString(radix: radix, pad: pad)
-    }
-}
 extension GroupElementConveritible {
     static func ==(lhs: Self, rhs: Group) -> Bool {
         lhs.groupElement == rhs
