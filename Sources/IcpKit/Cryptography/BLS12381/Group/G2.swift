@@ -70,7 +70,6 @@ struct InvalidCompressedG2Point: Error {}
 extension G2 {
     typealias Error = ProjectivePointError
     static let compressedDataByteCount = 96
-    static let uncompressedDataByteCount = 192
     
     init(x: Fp2, y: Fp2, z: Fp2) throws {
         try self.init(point: .init(x: x, y: y, z: z))
@@ -93,7 +92,7 @@ extension G2 {
         guard data.count == Self.compressedDataByteCount else {
             throw Error.invalidByteCount(
                 expectedCompressed: Self.compressedDataByteCount,
-                orUncompressed: Self.uncompressedDataByteCount,
+                orUncompressed: Self.compressedDataByteCount * 2,
                 butGot: data.count
             )
         }
@@ -110,9 +109,9 @@ extension G2 {
             }
             self = .zero
         } else {
-            let x1 = os2ip(Data(bytes.removingFirst(Self.compressedDataByteCount/2)))
-            let x0 = os2ip(Data(bytes.removingFirst(Self.compressedDataByteCount/2)))
-            assert(bytes.isEmpty)
+            let coordinateByteCount = Self.compressedDataByteCount / 2
+            let x1 = os2ip(Data(bytes[0..<coordinateByteCount]))
+            let x0 = os2ip(Data(bytes[coordinateByteCount..<Self.compressedDataByteCount]))
             let x = Fp2(c0: x0, c1: x1)
             
             // `y² = x³ + 4 * (u+1)` <=>
@@ -130,83 +129,5 @@ extension G2 {
             try self.init(x: x, y: y, z: .one)
         }
 
-    }
-    
-    init(uncompressedData data: Data) throws {
-        guard data.count == Self.uncompressedDataByteCount else {
-            throw Error.invalidByteCount(
-                expectedCompressed: Self.compressedDataByteCount,
-                orUncompressed: Self.uncompressedDataByteCount,
-                butGot: data.count
-            )
-        }
-     
-        // Check if the infinity flag is set
-        if (data[0] & (1 << 6)) != 0 {
-            self = .zero
-        } else {
-            var bytes = data
-            let x1 = os2ip(bytes.removingFirst(G1.compressedDataByteCount))
-            let x0 = os2ip(bytes.removingFirst(G1.compressedDataByteCount))
-            let y1 = os2ip(bytes.removingFirst(G1.compressedDataByteCount))
-            let y0 = os2ip(bytes.removingFirst(G1.compressedDataByteCount))
-            assert(bytes.isEmpty)
-            
-            try self.init(x: .init(c0: x0, c1: x1), y: .init(c0: y0, c1: y1), z: .one)
-        }
-    }
-
-    func toData(compress: Bool = true) -> Data {
-    
-        if compress {
-            var x0: BigInt = 0
-            var x1: BigInt = 0
-            if isZero {
-                // set compressed & point-at-infinity bits
-                x1 = BLS.exp2_383 + BLS.exp2_382
-            } else {
-                let affine = try! point.toAffine()
-                let x = affine.x
-                let y = affine.y
-                
-                // Is the y-coordinate the lexicographically largest of the two associated with the
-                // x-coordinate? If so, set the third-most significant bit so long as this is not
-                // the point at infinity.
-                let flag: BigInt = {
-                    let P = G1.Curve.P
-                    return y.c1.value == 0 ? (y.c0.value * 2) / P : (((y.c1.value * 2) / P) != 0) ? 1 : 0
-                }()
-                
-                // set compressed & sign bits
-                x1 = x.c1.value + (flag * BLS.exp2_381) + BLS.exp2_383
-                x0 = x.c0.value
-            }
-            return x1.serialize(padToLength: BLS.publicKeyCompressedByteCount) + x0.serialize(padToLength: BLS.publicKeyCompressedByteCount)
-        } else {
-            if isZero {
-                var out = Data(repeating: 0x00, count: 2 * BLS.publicKeyUncompressedByteCount)
-                out[0] = 0x40
-                return out
-            }
-            let affine = try! point.toAffine()
-            let x0 = affine.x.c0
-            let x1 = affine.x.c1
-            let y0 = affine.y.c0
-            let y1 = affine.y.c1
-            return [x1, x0, y1, y0].map {
-                $0.value.serialize(padToLength: BLS.publicKeyCompressedByteCount)
-            }.reduce(Data(), +)
-        }
-    }
-    
-}
-
-
-
-extension RangeReplaceableCollection {
-    mutating func removingFirst(_ length: Int) -> Self {
-        let removed = prefix(length)
-        removeFirst(length)
-        return Self(removed)
     }
 }

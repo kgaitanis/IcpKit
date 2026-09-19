@@ -47,11 +47,7 @@ where Curve.Group == Self {
     init(point: Point) throws
     
     static var compressedDataByteCount: Int { get }
-    static var uncompressedDataByteCount: Int { get }
-    init(bytes: some ContiguousBytes) throws
-    init(uncompressedData: Data) throws
     init(compressedData: Data) throws
-    func toData(compress: Bool) -> Data
 }
 
 extension FiniteGroup {
@@ -83,22 +79,7 @@ private extension FiniteGroup {
 extension FiniteGroup {
     static var identity: Self { try! Self(x: .one, y: .one, z: .zero) }
     static var zero: Self { try! Self.init(point: .zero) }
-    
-    init(bytes: some ContiguousBytes) throws {
-        let data = bytes.withUnsafeBytes { Data($0) }
-        if data.count == Self.compressedDataByteCount {
-            try self.init(compressedData: data)
-        } else if data.count == Self.uncompressedDataByteCount {
-            try self.init(uncompressedData: data)
-        } else {
-            throw ProjectivePointError.invalidByteCount(
-                expectedCompressed: Self.compressedDataByteCount,
-                orUncompressed: Self.uncompressedDataByteCount,
-                butGot: data.count
-            )
-        }
-    }
-    
+
     var isZero: Bool { point.isZero }
 }
 extension FiniteGroup {

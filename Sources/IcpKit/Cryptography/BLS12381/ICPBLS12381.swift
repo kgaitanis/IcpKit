@@ -8,21 +8,18 @@ import BigInt
 import CryptoKit
 import Foundation
 
-extension DomainSeperationTag {
-    static let g1ICPRandomOracle: Self = "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
-}
-
 extension BLS {
+    private static let icpG1DomainSeparationTag = Data("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_".utf8)
+    private static let icpHashToFieldExtensionDegree = 1
+    private static let icpHashToFieldSecurityLevel = 128
+    private static let icpHashToFieldElementByteCount = Int(
+        ceil((Double(G1.Curve.P.bitWidthIgnoreSign) + Double(icpHashToFieldSecurityLevel)) / 8)
+    )
+
     static func icpHashToG1(message: Data) throws -> G1 {
         let fieldElements = try hashToFieldSync(
             message: message,
-            elementCount: 2,
-            config: HashToFieldConfig(
-                domainSeperationTag: .g1ICPRandomOracle,
-                p: G1.Curve.P,
-                m: 1,
-                k: 128
-            )
+            elementCount: 2
         )
 
         let mapped = try fieldElements
@@ -35,24 +32,21 @@ extension BLS {
 
     private static func hashToFieldSync(
         message: Data,
-        elementCount: Int,
-        config: HashToFieldConfig
+        elementCount: Int
     ) throws -> [[BigInt]] {
-        let L = config.L
-        let byteCount = L * elementCount * config.m
+        let byteCount = icpHashToFieldElementByteCount * elementCount * icpHashToFieldExtensionDegree
         let pseudoRandomBytes = expandMessageXMDSync(
             toLength: byteCount,
-            message: message,
-            domainSeperationTag: config.domainSeperationTag
+            message: message
         )
 
         var elements: [[BigInt]] = []
         for i in 0..<elementCount {
             var element: [BigInt] = []
-            for j in 0..<config.m {
-                let offset = L * (j + i * config.m)
-                let bytes = pseudoRandomBytes[offset..<offset + L]
-                element.append(mod(a: os2ip(bytes), b: config.p))
+            for j in 0..<icpHashToFieldExtensionDegree {
+                let offset = icpHashToFieldElementByteCount * (j + i * icpHashToFieldExtensionDegree)
+                let bytes = pseudoRandomBytes[offset..<offset + icpHashToFieldElementByteCount]
+                element.append(mod(a: os2ip(bytes), b: G1.Curve.P))
             }
             elements.append(element)
         }
@@ -61,16 +55,14 @@ extension BLS {
 
     private static func expandMessageXMDSync(
         toLength outputByteCount: Int,
-        message: Data,
-        domainSeperationTag: DomainSeperationTag
+        message: Data
     ) -> Data {
         let bInBytes = SHA256.byteCount
         let rInBytes = bInBytes * 2
         let ell = Int(ceil(Double(outputByteCount) / Double(bInBytes)))
         precondition(ell <= 255)
 
-        let dst = domainSeperationTag.dataNoLongerThan255ElseHashed()
-        let dstPrime = dst + i2osp(dst.count, 1)
+        let dstPrime = icpG1DomainSeparationTag + i2osp(icpG1DomainSeparationTag.count, 1)
         let zPad = i2osp(0, rInBytes)
         let outputByteCountData = i2osp(outputByteCount, 2)
         let b0 = Data(SHA256.hash(data: zPad + message + outputByteCountData + i2osp(0, 1) + dstPrime))

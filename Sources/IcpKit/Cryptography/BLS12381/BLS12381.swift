@@ -102,7 +102,6 @@ extension BLS {
     static let exp2_383 = exp2_382 * 2
     
     static let publicKeyCompressedByteCount = G1.compressedDataByteCount
-    static let publicKeyUncompressedByteCount = G1.uncompressedDataByteCount
 }
 
 
@@ -448,86 +447,3 @@ struct NoPairingExistsAtPointOfInfinity: Error {}
 ///         $0 <<= 8
 ///         $0 += BigInt($1)
 ///     }
-func os2ip(_ data: Data) -> BigInt {
-    BigInt(sign: .plus, magnitude: BigUInt(data))
-}
-
-struct DomainSeperationTag: Sendable, Equatable, ExpressibleByStringLiteral {
-    let _data: Data
-    
-    /// https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-10.html#section-5.4.3
-    func dataNoLongerThan255ElseHashed() -> Data {
-        if _data.count <= 255 {
-            return _data
-        } else {
-            let prefixData = "H2C-OVERSIZE-DST-".data(using: .ascii)!
-            return Data(SHA256.hash(data: prefixData + _data))
-        }
-    }
-    init(data: Data) {
-        precondition(data.count > 0)
-        precondition(data.count <= 2048)
-        self._data = data
-    }
-    
-      // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
-    init(_ string: String) {
-        self.init(data: string.data(using: .utf8)!)
-    }
-    init(stringLiteral value: String) {
-        self.init(value)
-    }
-}
-
-struct HashToFieldConfig: Equatable, Sendable {
-    /// Domain seperation tag, aka `DST`.
-    let domainSeperationTag: DomainSeperationTag
-    /// The characteristic of F, where `F` is a finite field of *characteristic* `p` and *order* `q = p^m`
-    let p: BigInt
-    
-    /// The extension degree of F, m >= 1, where F is a finite field of characteristic p and order q = p^m
-    let m: Int
-
-    /// The target security level for the suite in bits [defined in reference][reference]
-    ///
-    /// [reference]: https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-5.1
-    let k: Int
-    
-    init(
-        domainSeperationTag: DomainSeperationTag,
-        p: BigInt,
-        m: Int,
-        k: Int
-    ) {
-        self.domainSeperationTag = domainSeperationTag
-        self.p = p
-        self.m = m
-        self.k = k
-    }
-}
-
-extension HashToFieldConfig {
-    
-    /// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-5.1
-    var L: Int {
-        let log2p = p.bitWidthIgnoreSign
-        let L = ceil((Double(log2p) + Double(k)) / 8)
-        return Int(L)
-    }
-}
-
-
-func i2osp(_ value: Int, _ length: Int) -> Data {
-    let preconditionFailureMessage = "Bad I2OSP call, value: \(value), length: \(length)"
-    precondition(value >= 0, preconditionFailureMessage)
-//    if value >= (1 << (8 * length)) {
-//        preconditionFailure(preconditionFailureMessage)
-//    }
-    var value = value
-    var result = Data(repeating: 0x00, count: length)
-    for i in 0..<length {
-        result[length - 1 - i] = UInt8(value & 0xff)
-        value >>= 8
-    }
-    return result
-}
