@@ -150,4 +150,50 @@ final class ICPCryptographyTests: XCTestCase {
             publicKey: publicKey,
             signature: Data.fromHex("b5a4e1b143d6f7c311b1f651f370177a7c5a3c2e7d9d337a28d72815000e34b35ca1dfbe6ca953aa0962116da29a8ee1")!))
     }
+    
+    func testBlsSignatureVerificationRejectsMalformedInputs() throws {
+        let message = "hello".data
+        let publicKey = Data.fromHex("a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5")!
+        let signature = Data.fromHex("b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe")!
+        
+        func XCTAssertInvalidBlsSignature(
+            publicKey: Data = publicKey,
+            signature: Data = signature,
+            file: StaticString = #filePath,
+            line: UInt = #line
+        ) {
+            XCTAssertThrowsError(
+                try ICPCryptography.verifyBlsSignature(
+                    message: message,
+                    publicKey: publicKey,
+                    signature: signature
+                ),
+                file: file,
+                line: line
+            ) { error in
+                XCTAssertEqual(error as? ICPStateCertificateError, .invalidSignature, file: file, line: line)
+            }
+        }
+        
+        XCTAssertInvalidBlsSignature(signature: signature.dropLast())
+        XCTAssertInvalidBlsSignature(signature: signature + Data([0x00]))
+        XCTAssertInvalidBlsSignature(publicKey: publicKey.dropLast())
+        XCTAssertInvalidBlsSignature(publicKey: publicKey + Data([0x00]))
+        
+        var identitySignature = Data(repeating: 0x00, count: signature.count)
+        identitySignature[0] = 0xc0
+        XCTAssertInvalidBlsSignature(signature: identitySignature)
+        
+        var identityPublicKey = Data(repeating: 0x00, count: publicKey.count)
+        identityPublicKey[0] = 0xc0
+        XCTAssertInvalidBlsSignature(publicKey: identityPublicKey)
+        
+        var alteredPublicKey = publicKey
+        alteredPublicKey[alteredPublicKey.count - 1] ^= 0x01
+        XCTAssertInvalidBlsSignature(publicKey: alteredPublicKey)
+        
+        var alteredSignature = signature
+        alteredSignature[alteredSignature.count - 1] ^= 0x01
+        XCTAssertInvalidBlsSignature(signature: alteredSignature)
+    }
 }
