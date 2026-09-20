@@ -274,6 +274,35 @@ extension BLS {
         }
         return f12.conjugate()
     }
+
+    static func millerLoop(terms: [(ell: [ProjectivePointFp2], g1: AffinePoint<Fp>)]) -> Fp12 {
+        let affineG1 = terms.map { (ell: $0.ell, px: $0.g1.x.value, py: $0.g1.y.value) }
+        var f12 = Fp12.one
+        var j = 0
+
+        for (i, bitX) in BitArray(bitPattern: G1.Curve.x)
+            .prefix(G1.Curve.x.bitWidthIgnoreSign-1)
+            .enumerated()
+            .reversed()
+        {
+            defer { j += 1 }
+            for term in affineG1 {
+                let E = term.ell[j]
+                f12 = f12.multiplyBy014(o0: E.x, o1: E.y * term.px, o4: E.z * term.py)
+            }
+            if bitX {
+                j += 1
+                for term in affineG1 {
+                    let F = term.ell[j]
+                    f12 = f12.multiplyBy014(o0: F.x, o1: F.y * term.px, o4: F.z * term.py)
+                }
+            }
+            if i != 0 {
+                f12.square()
+            }
+        }
+        return f12.conjugate()
+    }
     
     /// Implementation of algorithm [`expand_message_xmd`][reference].
     ///

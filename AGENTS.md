@@ -16,7 +16,8 @@
 
 ## Working Agreements
 - Inspect existing code and uncommitted changes before editing. Preserve the user's work.
-- Follow the repository's existing Swift conventions: SwiftUI/Swift package style, 4-space indentation, strong types, `let` for constants, `@State private var` for SwiftUI state, and async/await over Combine.
+- Follow the repository's existing Swift conventions: SwiftUI/Swift package style, 4-space indentation, strong types.
+- Prefer proving Sendable safety through value types, Sendable constraints, actors, or modern synchronization primitives before using `@unchecked Sendable`; if `@unchecked Sendable` is unavoidable, document why the type is safe.
 - Keep edits narrowly scoped to the requested task. Do not change production code, tests, dependencies, project settings, or examples unless the request calls for it.
 - Never disable tests or weaken assertions merely to obtain passing results.
 - Report what changed, what was actually tested, failures, skips, and remaining limitations.

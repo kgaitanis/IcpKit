@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct SimpleProjectivePoint<F: Field> {
+struct SimpleProjectivePoint<F: Field>: Sendable {
     let x: F
     let y: F
     let z: F

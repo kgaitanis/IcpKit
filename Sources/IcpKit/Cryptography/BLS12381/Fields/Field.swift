@@ -16,7 +16,8 @@ protocol Field:
     Numeric_,
     SignedNumeric_,
     DivisionArithmetic,
-    DivisibleByScalarArithmetic
+    DivisibleByScalarArithmetic,
+    Sendable
 {
     static var one: Self { get }
     
