@@ -78,4 +78,3 @@ private let testWallet2PublicKey: Data = Data.fromHex("04723cdc9bd653014a501159f
 
 private let principal1 = try! ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet1PublicKey)
 private let mainAccount1 = ICPAccount.mainAccount(of: principal1)
-

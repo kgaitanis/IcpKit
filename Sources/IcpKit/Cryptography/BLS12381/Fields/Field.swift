@@ -6,17 +6,14 @@
 //  Modified by Konstantinos Gaitanis on 2026-09-19.
 //
 
-import BigInt
 import Foundation
 
 /// An algebraic field.
 protocol Field:
     Equatable,
-    MultipliableByScalarArtithmetic,
     Numeric_,
     SignedNumeric_,
     DivisionArithmetic,
-    DivisibleByScalarArithmetic,
     Sendable
 {
     static var one: Self { get }
@@ -25,6 +22,35 @@ protocol Field:
     func inverted() throws -> Self
 
     func squared() throws -> Self
-    func pow(n: BigInt) throws -> Self
+    func pow(exponent: UInt64) throws -> Self
 
+}
+
+extension Field {
+    static func * (lhs: Self, rhs: Int) -> Self {
+        guard rhs != 0 else { return .zero }
+        if rhs < 0 {
+            return (lhs * -rhs).negated()
+        }
+
+        var result = Self.zero
+        var base = lhs
+        var scalar = rhs
+        while scalar > 0 {
+            if (scalar & 1) == 1 {
+                result += base
+            }
+            base += base
+            scalar >>= 1
+        }
+        return result
+    }
+
+    static func * (lhs: Int, rhs: Self) -> Self {
+        rhs * lhs
+    }
+
+    static func / (lhs: Self, rhs: Int) throws -> Self {
+        try lhs / (.one * rhs)
+    }
 }

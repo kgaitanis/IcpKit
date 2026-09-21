@@ -48,20 +48,20 @@ extension G1.Curve {
     /// x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
     /// y = 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
     static let generator = try! G1(
-        x: Fp(value: BigInt("17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb", radix: 16)!),
-        y: Fp(value: BigInt("08b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1", radix: 16)!),
+        x: Fp(hex: "17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"),
+        y: Fp(hex: "08b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1"),
         z: .one
     )
     
-    static let b: BigInt = 4
+    static let b = 4
     /// The BLS parameter x for BLS12-381
-    static let x = BigInt("d201000000010000", radix: 16)!
+    static let x: UInt64 = 0xd201000000010000
 }
 
 extension G1 {
     static let compressedDataByteCount = 48
   
-    static let b = Fp(value: G1.Curve.b)
+    static let b = Fp(G1.Curve.b)
     typealias Error = ProjectivePointError
     init(compressedData: Data) throws {
         guard compressedData.count == Self.compressedDataByteCount else {
@@ -72,22 +72,21 @@ extension G1 {
             )
         }
         
-        let compressedValue = os2ip(compressedData)
-        
-        let bflag = mod(a: compressedValue, b: BLS.exp2_383) / BLS.exp2_382
-        
-        if (bflag == 1) {
+        let flagI = (compressedData[0] & (1 << 6)) != 0
+        let flagS = (compressedData[0] & (1 << 5)) != 0
+
+        if flagI {
             self = Self.zero
         } else {
-            let x = Fp(value: mod(a: compressedValue, b: BLS.exp2_381))
-            let ySquared = try x.pow(n: 3) + Self.b
+            var xBytes = [UInt8](compressedData)
+            xBytes[0] &= 0x1f
+            let x = try Fp(canonicalBytes: Data(xBytes))
+            let ySquared = try x.pow(exponent: 3) + Self.b
             guard var y = ySquared.sqrt() else {
                 throw Error.invalidCompressedPoint
             }
-            
-            let aflag = mod(a: compressedValue, b: BLS.exp2_382) / BLS.exp2_381
-            
-            if ((y.value * 2) / G1.Curve.P) != aflag {
+
+            if y.isLexicographicallyLargest != flagS {
                 y.negate()
             }
             

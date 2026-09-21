@@ -6,27 +6,11 @@
 //  Modified by Konstantinos Gaitanis on 2026-09-19.
 //
 
-import BigInt
 import Foundation
 
 struct Fp12: Field, Sendable {
     let c0: Fp6
     let c1: Fp6
-}
-
-extension Fp12 {
-    init<C>(coeffs: C) where C: Collection, C.Element == BigInt, C.Index == Int {
-        precondition(coeffs.count == 12)
-        self.init(c0: .init(coeffs: coeffs.prefix(6)), c1: .init(coeffs: coeffs.suffix(6)))
-    }
-}
-
-extension BigInt {
-    
-    var bitWidthIgnoreSign: Int {
-        magnitude.bitWidth
-    }
-   
 }
 
 extension Fp12 {
@@ -62,7 +46,7 @@ extension Fp12 {
         try lhs * rhs.inverted()
     }
 
-    static func * (lhs: Self, rhs: BigInt) -> Self {
+    static func * (lhs: Self, rhs: Fp) -> Self {
         Self(c0: lhs.c0 * rhs, c1: lhs.c1 * rhs)
     }
     
@@ -80,11 +64,6 @@ extension Fp12 {
             c0: lhs.c0 * rhs,
             c1: lhs.c1 * rhs
         )
-    }
-
-    static func / (lhs: Self, rhs: BigInt) throws -> Self {
-        let inv = try Fp(value: rhs).inverted().value
-        return lhs * inv
     }
 
     func inverted() throws -> Self {
@@ -107,8 +86,8 @@ extension Fp12 {
         Self(c0: c0, c1: c1.negated())
     }
 
-    func pow(n: BigInt) throws -> Self {
-        try powMod(fqp: self, one: .one, n: n)
+    func pow(exponent: UInt64) throws -> Self {
+        try powMod(fqp: self, one: .one, exponent: exponent)
     }
 
     /// Raises to `q**i -th power`
@@ -155,31 +134,40 @@ extension Fp12 {
         let (t7, t8) = fp4Square(a: c0c1, b: c1c2)
 
         let t9 = t8.mulByNonresidue()
+        let d0 = t3 - c0c0
+        let d1 = t5 - c0c1
+        let d2 = t7 - c0c2
+        let d3 = t9 + c1c0
+        let d4 = t4 + c1c1
+        let d5 = t6 + c1c2
 
         return Fp12(
             c0: Fp6(
-                c0: 2 * (t3 - c0c0) + t3,
-                c1: 2 * (t5 - c0c1) + t5,
-                c2: 2 * (t7 - c0c2) + t7
+                c0: d0 + d0 + t3,
+                c1: d1 + d1 + t5,
+                c2: d2 + d2 + t7
             ),
             c1: Fp6(
-                c0: 2 * (t9 + c1c0) + t9,
-                c1: 2 * (t4 + c1c1) + t4,
-                c2: 2 * (t6 + c1c2) + t6
+                c0: d3 + d3 + t9,
+                c1: d4 + d4 + t4,
+                c2: d5 + d5 + t6
             )
         )
     }
 
-    func cyclotomicExp(n: BigInt) -> Self {
-        return BitArray(bitPattern: n)
-            .prefix(G2.Curve.x.bitWidthIgnoreSign)
-            .reversed()
-            .reduce(into: Self.one) {
-                $0 = $0.cyclotomicSquare()
-                if $1 {
-                    $0 *= self
-                }
+    func cyclotomicExp(exponent: UInt64) -> Self {
+        var bits = Array(BitArray(bitPattern: exponent)
+            .prefix(exponent.bitWidth - exponent.leadingZeroBitCount)
+            .reversed())
+        guard !bits.isEmpty else { return .one }
+        precondition(bits.removeFirst())
+
+        return bits.reduce(into: self) {
+            $0 = $0.cyclotomicSquare()
+            if $1 {
+                $0 *= self
             }
+        }
     }
     
     // https://eprint.iacr.org/2010/354.pdf
@@ -190,12 +178,12 @@ extension Fp12 {
         let t0 = try frobeniusMap(power: 6) / self
         // t0^(q²) * t0
         let t1 = t0.frobeniusMap(power: 2) * t0
-        let t2 = t1.cyclotomicExp(n: x).conjugate()
+        let t2 = t1.cyclotomicExp(exponent: x).conjugate()
         let t3 = t1.cyclotomicSquare().conjugate() * t2
-        let t4 = t3.cyclotomicExp(n: x).conjugate()
-        let t5 = t4.cyclotomicExp(n: x).conjugate()
-        let t6 = t5.cyclotomicExp(n: x).conjugate() * t2.cyclotomicSquare()
-        let t7 = t6.cyclotomicExp(n: x).conjugate()
+        let t4 = t3.cyclotomicExp(exponent: x).conjugate()
+        let t5 = t4.cyclotomicExp(exponent: x).conjugate()
+        let t6 = t5.cyclotomicExp(exponent: x).conjugate() * t2.cyclotomicSquare()
+        let t7 = t6.cyclotomicExp(exponent: x).conjugate()
         let t2_t5_pow_q2 = (t2 * t5).frobeniusMap(power: 2)
         let t4_t1_pow_q3 = (t4 * t1).frobeniusMap(power: 3)
         let t6_t1c_pow_q1 = (t6 * t1.conjugate()).frobeniusMap(power: 1)

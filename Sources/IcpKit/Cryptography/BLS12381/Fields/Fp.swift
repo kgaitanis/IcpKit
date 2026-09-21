@@ -7,97 +7,75 @@
 //
 
 import Foundation
-import BigInt
 
 /// Finite field over `p`.
 struct Fp: FiniteField, Sendable {
-    let value: BigInt
-    init(value: BigInt) {
-        self.value = mod(a: value, b: Self.order)//value % Self.order
-    }
-}
+    private let storage: MontgomeryFp
 
-func mod(a: BigInt, b: BigInt) -> BigInt {
-    let res = a % b
-    return res >= 0 ? res : b + res
-}
+    var isOdd: Bool {
+        storage.isOdd
+    }
 
-/// Inverses number over modulo
-func invert(number: BigInt, modulo: BigInt) throws -> BigInt {
-    if number.isZero || modulo <= 0 {
-        struct ExpectedPositiveInteger: Error {}
-        throw ExpectedPositiveInteger()
+    var isLexicographicallyLargest: Bool {
+        storage.isLexicographicallyLargest
     }
-    // Eucledian GCD https://brilliant.org/wiki/extended-euclidean-algorithm/
-    var a = mod(a: number, b: modulo)
-    var b = modulo
-    var x: BigInt = 0
-    var y: BigInt = 1
-    var u: BigInt = 1
-    var v: BigInt = 0
-    while a != 0 {
-        let (q, r) = b.quotientAndRemainder(dividingBy: a)
-        let m = x - u * q
-        let n = y - v * q
-        b = a; a = r; x = u; y = v; u = m; v = n;
+
+    func isGreaterThan(_ other: Self) -> Bool {
+        storage.isGreaterThan(other.storage)
     }
-    let gcd = b
-    guard gcd == 1 else {
-        struct NoInverseExists: Error {}
-        throw NoInverseExists()
+
+    init(_ value: Int) {
+        precondition(value >= 0)
+        self.storage = MontgomeryFp(canonicalLimbs: (UInt64(value), 0, 0, 0, 0, 0))
     }
-    return mod(a: x, b: modulo)
+
+    init(hex: String) {
+        self.storage = MontgomeryFp(hex: hex)
+    }
+
+    init(canonicalBytes: Data) throws {
+        self.storage = try MontgomeryFp(canonicalBytes: canonicalBytes)
+    }
+
+    init(storage: MontgomeryFp) {
+        self.storage = storage
+    }
 }
 
 extension Fp {
-    
-    /// The order of this field equals the modulus of G1.
-    static let order = G1.Curve.modulus
-    
-    static let zero = Self(value: 0)
-    static let one = Self(value: 1)
+    static let zero = Self(0)
+    static let one = Self(1)
     
     func negated() -> Self {
-        var valueCopy = value
-        valueCopy.negate()
-        return Self(value: valueCopy)
+        Self(storage: storage.negated())
     }
     
     func inverted() throws -> Self {
-        let inverse = try invert(number: value, modulo: order)
-        return Self(value: inverse)
+        try Self(storage: storage.inverted())
     }
     
     static func + (lhs: Self, rhs: Self) -> Self {
-        op(lhs, rhs, +)
+        Self(storage: lhs.storage + rhs.storage)
     }
     
     static func - (lhs: Self, rhs: Self) -> Self {
-        op(lhs, rhs, -)
+        Self(storage: lhs.storage - rhs.storage)
     }
     
     static func * (lhs: Self, rhs: Self) -> Self {
-       op(lhs, rhs, *)
+        Self(storage: lhs.storage * rhs.storage)
     }
     
     static func / (lhs: Self, rhs: Self) throws -> Self {
-        try lhs * rhs.inverted()
-    }
-    
-    static func * (lhs: Self, rhs: BigInt) -> Self {
-        Self.init(value: lhs.value * rhs)
-    }
-    
-    static func / (lhs: Self, rhs: BigInt) throws -> Self {
-        try lhs / Self(value: rhs)
+        try Self(storage: lhs.storage / rhs.storage)
     }
     
     func squared() throws -> Self {
-       try pow(n: 2)
+        Self(storage: storage.squared())
     }
     
-    func pow(n: BigInt) throws -> Self {
-        try .init(value: powMod(num: value, power: n, modulo: order))
+    func pow(exponent: UInt64) throws -> Self {
+        Self(storage: storage.pow(exponent: exponent))
     }
     
     // square root computation for p ≡ 3 (mod 4)
@@ -106,53 +84,6 @@ extension Fp {
     // It's possible to unwrap the exponentiation, but (P+1)/4 has 228 1's out of 379 bits.
     // https://eprint.iacr.org/2012/685.pdf
     func sqrt() -> Self? {
-        guard let root = try? pow(n: (order + 1) / 4) else {
-            return nil
-        }
-        guard let rootSquared = try? root.squared() else { return nil }
-        if rootSquared != self { return nil }
-        return root
-    }
-}
-
-/**
- * Efficiently exponentiate num to power and do modular division.
- * @example
- * powMod(2n, 6n, 11n) // 64n % 11n == 9n
- */
-func powMod(num: BigInt, power: BigInt, modulo: BigInt) throws -> BigInt {
-    guard modulo > 0, power >= 0 else {
-        struct ExpectedPowerAndModuloGr0: Error {}
-        throw ExpectedPowerAndModuloGr0()
-    }
-    if modulo == 1 { return 0 }
-    var res: BigInt = 1
-    var num = num
-    var power = power
-    while power > 0 {
-        if ((power & 1) != 0) {
-            res = (res * num) % modulo
-        }
-        num = (num * num) % modulo
-        power >>= 1
-    }
-    return res
-    
-}
-//export function powMod(num: bigint, power: bigint, modulo: bigint) {
-//    if (modulo <= 0n || power < 0n) throw new Error('Expected power/modulo > 0');
-//    if (modulo === 1n) return 0n;
-//    let res = 1n;
-//    while (power > 0n) {
-//        if (power & 1n) res = (res * num) % modulo;
-//        num = (num * num) % modulo;
-//        power >>= 1n;
-//    }
-//    return res;
-//}
-
-private extension Fp {
-    static func op(_ lhs: Self, _ rhs: Self, _ operation: (BigInt, BigInt) -> BigInt) -> Self {
-        .init(value: operation(lhs.value, rhs.value))
+        storage.sqrt().map(Self.init(storage:))
     }
 }

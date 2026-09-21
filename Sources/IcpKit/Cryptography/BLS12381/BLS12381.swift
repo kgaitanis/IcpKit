@@ -7,83 +7,116 @@
 //
 
 import Foundation
-import BigInt
 import CryptoKit // SHA256
 
 /// Utilities for 3-isogeny map from E' to E.
 enum Isogeny {
-    struct Fp2_4: ExpressibleByArrayLiteral {
+    struct Fp2_4 {
         let elements: [Fp2]
+
+        /// Each 3-isogeny polynomial below has four Fp2 coefficients, listed
+        /// from lowest to highest degree in the hash-to-curve appendix.
         static let count = 4
+
         struct WrongLength: Error {}
+
         subscript(index: Int) -> Fp2 {
             precondition(index >= 0)
             precondition(index <= Self.count)
             return elements[index]
         }
+
         init(elements: [Fp2]) throws {
             guard elements.count == Self.count else { throw WrongLength() }
             self.elements = elements
         }
-        init(bigInts: [BigInt]) throws {
-            guard bigInts.count == Self.count*2 else { throw WrongLength() }
-            let elements = stride(from: 0, to: bigInts.count, by: 2)
-                .map { Fp2(c0: bigInts[$0], c1: bigInts[$0 + 1]) }
-            try self.init(elements: elements)
-        }
-        init(arrayLiteral bigInts: BigInt...) {
-            try! self.init(bigInts: bigInts)
-        }
     }
-    
-    private static let a97d6 = BigInt("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6", radix: 16)!
-    private static let d706 = BigInt("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706", radix: 16)!
-    private static let a8fb = BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb", radix: 16)!
-    
-    static let xnum: Fp2_4 = [
-        a97d6,
-        a97d6,
-        0,
-        BigInt("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a", radix: 16)!,
-        BigInt("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71e", radix: 16)!,
-        BigInt("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d", radix: 16)!,
-        BigInt("171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1", radix: 16)!,
-        0
-    ]
-    
-    static let xden: Fp2_4 = [
-        0,
-        BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63", radix: 16)!,
-        0x0c,
-        BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f", radix: 16)!,
-        1,
-        0,
-        0,
-        0
-    ]
-    
-    static let ynum: Fp2_4 = [
-        d706,
-        d706,
-        0,
-        BigInt("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be", radix: 16)!,
-        BigInt("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c", radix: 16)!,
-        BigInt("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f", radix: 16)!,
-        BigInt("124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10", radix: 16)!,
-        0
-    ]
-    
-    static let yden: Fp2_4 = [
-        a8fb,
-        a8fb,
-        0,
-        BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3", radix: 16)!,
-        0x12,
-        BigInt("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99", radix: 16)!,
-        1,
-        0
-    ]
-    
+
+    /// x-coordinate numerator coefficients for the BLS12-381 G2 3-isogeny map.
+    ///
+    /// Source: hash-to-curve draft, BLS12381G2_XMD:SHA-256_SSWU_RO_ appendix E.3.
+    /// Recompute by taking the spec's hexadecimal Fp2 coefficient pairs and
+    /// constructing each pair as `Fp2(c0, c1)` in canonical field representation.
+    static let xnum = try! Fp2_4(elements: [
+        Fp2(
+            realHex: "5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6",
+            imaginaryHex: "5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6"
+        ),
+        Fp2(
+            realHex: "0",
+            imaginaryHex: "11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a"
+        ),
+        Fp2(
+            realHex: "11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71e",
+            imaginaryHex: "8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d"
+        ),
+        Fp2(
+            realHex: "171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1",
+            imaginaryHex: "0"
+        )
+    ])
+
+    /// x-coordinate denominator coefficients for the same 3-isogeny map.
+    ///
+    /// Source/recompute method is the same as `xnum`; small coefficients such as
+    /// `0x0c` and `1` are literal Fp values from the spec table.
+    static let xden = try! Fp2_4(elements: [
+        Fp2(
+            realHex: "0",
+            imaginaryHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63"
+        ),
+        Fp2(
+            realHex: "0c",
+            imaginaryHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f"
+        ),
+        Fp2((1, 0)),
+        Fp2((0, 0))
+    ])
+
+    /// y-coordinate numerator coefficients for the same 3-isogeny map.
+    ///
+    /// Source/recompute method is the same as `xnum`.
+    static let ynum = try! Fp2_4(elements: [
+        Fp2(
+            realHex: "1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706",
+            imaginaryHex: "1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706"
+        ),
+        Fp2(
+            realHex: "0",
+            imaginaryHex: "5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be"
+        ),
+        Fp2(
+            realHex: "11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c",
+            imaginaryHex: "8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f"
+        ),
+        Fp2(
+            realHex: "124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10",
+            imaginaryHex: "0"
+        )
+    ])
+
+    /// y-coordinate denominator coefficients for the same 3-isogeny map.
+    ///
+    /// Source/recompute method is the same as `xnum`; `0x12` and `1` are literal
+    /// Fp values from the spec table.
+    static let yden = try! Fp2_4(elements: [
+        Fp2(
+            realHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb",
+            imaginaryHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb"
+        ),
+        Fp2(
+            realHex: "0",
+            imaginaryHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3"
+        ),
+        Fp2(
+            realHex: "12",
+            imaginaryHex: "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99"
+        ),
+        Fp2((1, 0))
+    ])
+
+    /// The isogeny coefficient blocks in evaluation order:
+    /// x numerator, x denominator, y numerator, y denominator.
     static let coefficients: [Fp2_4] = [xnum, xden, ynum, yden]
     
 }
@@ -92,24 +125,19 @@ enum Isogeny {
 // https://www.ietf.org/id/draft-irtf-cfrg-bls-signature-05.html#name-ciphersuites-for-bls12-381
 enum BLS {}
 extension BLS {
-    
-    /// `C_bit`, compression bit for serialization flag
-    static let exp2_381 = BigInt(2).power(381)
-    
-    /// `I_bit`, point-at-infinity bit for serialization flag
-    static let exp2_382 = exp2_381 * 2
-    
-    /// `S_bit`, sign bit for serialization flag
-    static let exp2_383 = exp2_382 * 2
-}
 
-
-extension BLS {
-    
+    /// Cubic extension generator `v` represented in Fp6 = Fp2[v]/(v^3 - (u + 1)).
+    /// It is used to embed the Fp6 nonresidue into Fp12 Frobenius constants.
     static let utRoot = Fp6(c0: .zero, c1: .one, c2: .zero)
+
+    /// `v` embedded into Fp12 as the c0 component.
     static let wsq = Fp12(c0: utRoot, c1: .zero)
+
+    /// `w` embedded into Fp12 as the c1 component.
     static let wcu = Fp12(c0: .zero, c1: utRoot)
-    
+
+    /// Batched inverses of `wsq` and `wcu`.
+    /// Recompute with Montgomery field inversion; batching saves one inversion.
     static let (wsqInv, wcuInv) = {
         let invertedBatch = try! generateInvertedBatch(
             fieldType: Fp12.self,
@@ -199,7 +227,7 @@ extension BLS {
         
         
         for bitX in BitArray(bitPattern: G1.Curve.x)
-            .prefix(G1.Curve.x.bitWidthIgnoreSign-1)
+            .prefix(G1.Curve.x.bitWidth - G1.Curve.x.leadingZeroBitCount - 1)
             .reversed() {
             // Double
             let t0 = Ry.squared() // Ry²
@@ -250,13 +278,13 @@ extension BLS {
     }
     
     static func millerLoop(ell: [ProjectivePointFp2], g1: AffinePoint<Fp>) -> Fp12 {
-        let Px = g1.x.value
-        let Py = g1.y.value
+        let Px = g1.x
+        let Py = g1.y
         var f12 = Fp12.one
         var j = 0
 
         for (i, bitX) in BitArray(bitPattern: G1.Curve.x)
-            .prefix(G1.Curve.x.bitWidthIgnoreSign-1)
+            .prefix(G1.Curve.x.bitWidth - G1.Curve.x.leadingZeroBitCount - 1)
             .enumerated()
             .reversed()
         {
@@ -276,12 +304,12 @@ extension BLS {
     }
 
     static func millerLoop(terms: [(ell: [ProjectivePointFp2], g1: AffinePoint<Fp>)]) -> Fp12 {
-        let affineG1 = terms.map { (ell: $0.ell, px: $0.g1.x.value, py: $0.g1.y.value) }
+        let affineG1 = terms.map { (ell: $0.ell, px: $0.g1.x, py: $0.g1.y) }
         var f12 = Fp12.one
         var j = 0
 
         for (i, bitX) in BitArray(bitPattern: G1.Curve.x)
-            .prefix(G1.Curve.x.bitWidthIgnoreSign-1)
+            .prefix(G1.Curve.x.bitWidth - G1.Curve.x.leadingZeroBitCount - 1)
             .enumerated()
             .reversed()
         {

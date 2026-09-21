@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import BigInt
 
 /// Fp₂ over complex plane
 struct Fp2: FiniteField, Sendable {
@@ -24,17 +23,11 @@ struct Fp2: FiniteField, Sendable {
 }
 private struct BadCount: Error {}
 extension Fp2 {
-    init(c0: BigInt, c1: BigInt) {
-        self.init(c0: .init(value: c0), c1: .init(value: c1))
-    }
-    init(real: BigInt, imaginary: BigInt) {
-        self.init(c0: real, c1: imaginary)
-    }
-    init(_ tuple: (BigInt, BigInt)) {
-        self.init(c0: tuple.0, c1: tuple.1)
+    init(realHex: String, imaginaryHex: String) {
+        self.init(c0: Fp(hex: realHex), c1: Fp(hex: imaginaryHex))
     }
     init(_ tuple: (Int, Int)) {
-        self.init(c0: BigInt(tuple.0), c1: BigInt(tuple.1))
+        self.init(c0: Fp(tuple.0), c1: Fp(tuple.1))
     }
     init(_ tuple: (Fp, Fp)) {
         self.init(c0: tuple.0, c1: tuple.1)
@@ -45,19 +38,9 @@ extension Fp2 {
         }
         self.init(c0: collection[collection.startIndex], c1: collection[collection.index(after: collection.startIndex)])
     }
-    init(_ collection: some Collection<BigInt>) throws {
-        guard collection.count == 2 else {
-            throw BadCount()
-        }
-        self.init(c0: collection[collection.startIndex], c1: collection[collection.index(after: collection.startIndex)])
-    }
-    var real: BigInt { c0.value }
-    var imaginary: BigInt { c1.value }
 }
 
 extension Fp2 {
-    /// The order of this field equals the modulus of G2.
-    static let order = G2.Curve.modulus
     static let zero = Self(c0: .zero, c1: .zero)
     static let one = Self(c0: .one, c1: .zero)
     
@@ -72,25 +55,24 @@ extension Fp2 {
         op(lhs, rhs, -)
     }
     static func * (lhs: Self, rhs: Self) -> Self {
-        // (A+Bi)(C+Di) = (AC−BD) + (AD+BC)i
+        // Karatsuba form of (A + Bi)(C + Di), using i^2 = -1.
+        // This saves one base-field multiplication versus computing AD + BC directly.
         let A = lhs.c0
         let B = lhs.c1
         let C = rhs.c0
         let D = rhs.c1
-        return .init(c0: (A*C - B*D), c1: (A*D + B*C))
+        let ac = A * C
+        let bd = B * D
+        let abcd = (A + B) * (C + D)
+        return .init(c0: ac - bd, c1: abcd - ac - bd)
     }
     static func / (lhs: Self, rhs: Self) throws -> Self {
         let inv = try rhs.inverted()
         return lhs * inv
     }
     
-    static func * (lhs: Self, rhs: BigInt) -> Self {
-        op(lhs, rhs, *)
-    }
-    
-    static func / (lhs: Self, rhs: BigInt) throws -> Self {
-        let inv = try Fp(value: rhs).inverted().value
-        return lhs * inv
+    static func * (lhs: Self, rhs: Fp) -> Self {
+        .init(c0: lhs.c0 * rhs, c1: lhs.c1 * rhs)
     }
     
     /// We wish to find the multiplicative inverse of a nonzero
@@ -107,10 +89,8 @@ extension Fp2 {
     /// of (a + bu). Importantly, this can be computing using
     /// only a single inversion in Fp.
     func inverted() throws -> Self {
-        let a = c0.value
-        let b = c1.value
-        let factor = try Fp(value: a * a + b * b).inverted()
-        return .init(c0: factor * a, c1: factor * -b)
+        let factor = try (c0.squared() + c1.squared()).inverted()
+        return .init(c0: factor * c0, c1: (factor * c1).negated())
     }
     
     func squared() -> Self {
@@ -120,8 +100,12 @@ extension Fp2 {
         return .init(c0: a * b, c1: c * c1)
     }
     
-    func pow(n: BigInt) throws -> Self {
-        try powMod(fqp: self, one: .one, n: n)
+    func pow(exponent: UInt64) throws -> Self {
+        try powMod(fqp: self, one: .one, exponent: exponent)
+    }
+
+    private func pow(exponentLimbs: [UInt64]) throws -> Self {
+        try powMod(fqp: self, one: .one, exponentLimbs: exponentLimbs)
     }
     
     // TODO: Optimize this line. It's extremely slow.
@@ -131,7 +115,7 @@ extension Fp2 {
     // https://github.com/supranational/blst/blob/aae0c7d70b799ac269ff5edf29d8191dbd357876/src/exp2.c#L1
     // Inspired by https://github.com/dalek-cryptography/curve25519-dalek/blob/17698df9d4c834204f83a3574143abacb4fc81a5/src/field.rs#L99
     func sqrt() throws -> Fp2 {
-        let candidateSqrt = try pow(n: ((Self.order + 8) / 16))
+        let candidateSqrt = try pow(exponentLimbs: Self.squareRootExponent)
         let check = try candidateSqrt.squared() / self
         let R = Self.rootsOfUnity
         guard let divisor = [R[0], R[2], R[4], R[6]].first(where: { $0 == check }) else {
@@ -146,11 +130,7 @@ extension Fp2 {
         let root = R[divisorIndex / 2]
         let x1 = try candidateSqrt / root
         let x2 = x1.negated()
-        let re1 = x1.c0.value
-        let im1 = x1.c1.value
-        let re2 = x2.c0.value
-        let im2 = x2.c1.value
-        if im1 > im2 || (im1 == im2 && re1 > re2) {
+        if x1.isGreaterThan(x2) {
             return x1
         }
         return x2
@@ -159,7 +139,7 @@ extension Fp2 {
 
 extension Fp2 {
     /// For `roots of unity`.
-    static let rv1 = BigInt("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09", radix: 16)!
+    static let rv1 = Fp(hex: "6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09")
 
 }
 
@@ -168,21 +148,18 @@ extension Fp2 {
     
     /// Eighth roots of unity, used for computing square roots in Fp2.
     /// To verify or re-calculate:
-    /// `Array(8).fill(new Fp2([1n, 1n])).map((fp2, k) => fp2.pow(Fp2.ORDER * BigInt(k) / 8n))`
-    ///
-    ///   `[Fp2](repeating: .(real: .one, imaginary: .one), count: 8).enumerated().map { (fp2, k) in fp2.pow(n: ) }`
     static let rootsOfUnity: [Self] = {
-        let tuples: [(BigInt, BigInt)] = [
-            (1, 0),
-            (rv1, -rv1),
-            (0, 1),
+        let tuples: [(Fp, Fp)] = [
+            (.one, .zero),
+            (rv1, rv1.negated()),
+            (.zero, .one),
             (rv1, rv1),
-            (-1, 0),
-            (-rv1, rv1),
-            (0, -1),
-            (-rv1, -rv1)
+            (.one.negated(), .zero),
+            (rv1.negated(), rv1),
+            (.zero, .one.negated()),
+            (rv1.negated(), rv1.negated())
         ]
-        return tuples.map { Self(c0: Fp(value: $0.0), c1: Fp(value: $0.1)) }
+        return tuples.map(Self.init)
     }()
     
     /// Multiply by: `u + 1`
@@ -207,13 +184,16 @@ extension Fp2 {
         return .init(c0: t0 - t1, c1: t0 + t1)
     }
     
-    func sgn0() -> BigInt {
-        let x0 = self.real
-        let x1 = self.imaginary
-        let sign0 = x0 % 2 == 1
-        let zero0 = x0 == 0
-        let sign1 = x1 % 2 == 1
-        return (sign0 || (zero0 && sign1)) ? 1 : 0
+    var isLexicographicallyLargest: Bool {
+        c1.isLexicographicallyLargest || (c1 == .zero && c0.isLexicographicallyLargest)
+    }
+
+    func isGreaterThan(_ other: Self) -> Bool {
+        c1.isGreaterThan(other.c1) || (c1 == other.c1 && c0.isGreaterThan(other.c0))
+    }
+
+    func sgn0() -> Bool {
+        c0.isOdd || (c0 == .zero && c1.isOdd)
     }
     
     /*
@@ -222,23 +202,33 @@ extension Fp2 {
        const sign_0 = x0 % 2n;
        const zero_0 = x0 === 0n;
        const sign_1 = x1 % 2n;
-       return BigInt(sign_0 || (zero_0 && sign_1));
+       return sign_0 || (zero_0 && sign_1);
      }
      */
 }
 
 private extension Fp2 {
+    // (p^2 + 8) / 16, where p is the BLS12-381 base-field modulus.
+    // Stored as little-endian 64-bit limbs so Fp2 square roots avoid arbitrary-precision arithmetic.
+    static let squareRootExponent: [UInt64] = [
+        0xb26aa00001c718e4,
+        0xd7ced6b1d76382ea,
+        0x3162c338362113cf,
+        0x966bf91ed3e71b74,
+        0xb292e85a87091a04,
+        0x11d68619c86185c7,
+        0xef53149330978ef0,
+        0x050a62cfd16ddca6,
+        0x466e59e49349e8bd,
+        0x9e2dc90e50e7046b,
+        0x74bd278eaa22f25e,
+        0x002a437a4b8c35fc
+    ]
+
     static func op(_ lhs: Self, _ rhs: Self, _ operation: (Fp, Fp) -> Fp) -> Self {
         .init(
             c0: operation(lhs.c0, rhs.c0),
             c1: operation(lhs.c1, rhs.c1)
-        )
-    }
-    
-    static func op(_ lhs: Self, _ rhs: BigInt, _ operation: (Fp, BigInt) -> Fp) -> Self {
-        .init(
-            c0: operation(lhs.c0, rhs),
-            c1: operation(lhs.c1, rhs)
         )
     }
 }
@@ -246,20 +236,40 @@ private extension Fp2 {
 func powMod<F: Field>(
     fqp: F,
     one: F,
-    n: BigInt
+    exponent: UInt64
 ) throws -> F {
-    let elm = fqp
-    if n == 0 { return one }
-    if n == 1 { return elm }
-    var n = n
-    var p = one
-    var d = elm
-    while n > 0 {
-        if (n & 1) != 0 {
-            p = p * d
+    if exponent == 0 { return one }
+    if exponent == 1 { return fqp }
+
+    var exponent = exponent
+    var result = one
+    var base = fqp
+    while exponent > 0 {
+        if (exponent & 1) != 0 {
+            result = result * base
         }
-        n >>= 1
-        d = try d.squared()
+        exponent >>= 1
+        base = try base.squared()
     }
-    return p
+    return result
+}
+
+func powMod<F: Field>(
+    fqp: F,
+    one: F,
+    exponentLimbs: [UInt64]
+) throws -> F {
+    var result = one
+    var base = fqp
+    for limb in exponentLimbs {
+        var bits = limb
+        for _ in 0..<UInt64.bitWidth {
+            if (bits & 1) != 0 {
+                result = result * base
+            }
+            bits >>= 1
+            base = try base.squared()
+        }
+    }
+    return result
 }

@@ -145,8 +145,8 @@ private extension P1 {
     }
     
     func _isOnCurve() throws -> Bool {
-        let left = try y.pow(n: 2) * z - x.pow(n: 3)
-        let right = try G1.b * z.pow(n: 3)
+        let left = try y.pow(exponent: 2) * z - x.pow(exponent: 3)
+        let right = try G1.b * z.pow(exponent: 3)
         return (left - right).isZero
     }
 }

@@ -39,8 +39,8 @@ extension P2 {
     /// Checks for equation `y² = x³ + b`
     func _isOnCurve() throws -> Bool {
         let b = G2.Curve.b
-        let left = try y.pow(n: 2) * z - x.pow(n: 3)
-        let right = try b * z.pow(n: 3)
+        let left = try y.pow(exponent: 2) * z - x.pow(exponent: 3)
+        let right = try b * z.pow(exponent: 3)
         return (left - right).isZero
     }
     

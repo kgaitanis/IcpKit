@@ -1,7 +1,7 @@
 //
 //  BlsSignatureVerifier.swift
 //
-//  Created by Coding Assistant on 19.09.26.
+//  Created by Konstantinos Gaitanis on 19.09.26.
 //
 
 import Foundation

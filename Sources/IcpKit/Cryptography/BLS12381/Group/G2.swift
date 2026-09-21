@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import BigInt
 
 // MARK: G2
 
@@ -44,21 +43,21 @@ extension G2.Curve {
     static let generator = try! G2(
         point: .init(
             x: .init(
-                c0: BigInt("024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8", radix: 16)!,
-                c1: BigInt("13e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e", radix: 16)!
+                realHex: "024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+                imaginaryHex: "13e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e"
             ),
             y: .init(
-                c0: BigInt("0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801", radix: 16)!,
-                c1: BigInt("0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be", radix: 16)!
+                realHex: "0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801",
+                imaginaryHex: "0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be"
             ),
             z: .one
         )
     )
     
     /// The BLS parameter `x` for BLS12-381
-    static let x = G1.Curve.x
+    static let x: UInt64 = G1.Curve.x
     
-    static let b = Fp2((BigInt(4), BigInt(4)))
+    static let b = Fp2((4, 4))
 }
 
 struct BadEncodingFlag: Error {}
@@ -106,22 +105,18 @@ extension G2 {
             self = .zero
         } else {
             let coordinateByteCount = Self.compressedDataByteCount / 2
-            let x1 = os2ip(Data(bytes[0..<coordinateByteCount]))
-            let x0 = os2ip(Data(bytes[coordinateByteCount..<Self.compressedDataByteCount]))
+            let x1 = try Fp(canonicalBytes: Data(bytes[0..<coordinateByteCount]))
+            let x0 = try Fp(canonicalBytes: Data(bytes[coordinateByteCount..<Self.compressedDataByteCount]))
             let x = Fp2(c0: x0, c1: x1)
             
             // `y² = x³ + 4 * (u+1)` <=>
             // `y² = x³ + b`
-            let y² = try x.pow(n: 3) + Curve.b
+            let y² = try x.pow(exponent: 3) + Curve.b
             var y = try y².sqrt()
             guard !y.isZero else {
                 throw InvalidCompressedG2Point()
             }
-            let P = Curve.P
-            let t0 = (y.c0.value * 2) / P
-            let t1 = (y.c1.value * 2) / P
-            let yBit = (y.c1.value == 0 ? t0 : t1) == 0 ? 1 : 0
-            y = flagS && yBit > 0 ? y : y.negated()
+            y = flagS ? y : y.negated()
             try self.init(x: x, y: y, z: .one)
         }
 

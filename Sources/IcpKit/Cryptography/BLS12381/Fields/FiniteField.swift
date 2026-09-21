@@ -7,12 +7,6 @@
 //
 
 import Foundation
-import BigInt
 
 /// A Finite algebraic field.
-protocol FiniteField: Field {
-    static var order: BigInt { get }
-}
-extension FiniteField {
-    var order: BigInt { Self.order }
-}
+protocol FiniteField: Field {}

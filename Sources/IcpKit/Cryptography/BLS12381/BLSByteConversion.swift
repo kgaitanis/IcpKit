@@ -1,7 +1,7 @@
 //
 //  BLSByteConversion.swift
 //
-//  Created by Coding Assistant on 19.09.26.
+//  Created by Konstantinos Gaitanis on 19.09.26.
 //
 
 import BigInt
@@ -13,6 +13,23 @@ import Foundation
 /// big-endian octet strings.
 func os2ip(_ data: Data) -> BigInt {
     BigInt(sign: .plus, magnitude: BigUInt(data))
+}
+
+func mod(a: BigInt, b: BigInt) -> BigInt {
+    let res = a % b
+    return res >= 0 ? res : b + res
+}
+
+extension BigInt {
+    var bitWidthIgnoreSign: Int {
+        magnitude.bitWidth
+    }
+}
+
+extension Fp {
+    init(reducing value: BigInt) {
+        self.init(storage: MontgomeryFp(value: value))
+    }
 }
 
 func i2osp(_ value: Int, _ length: Int) -> Data {

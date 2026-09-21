@@ -1,20 +1,18 @@
 //
 //  ICPBLS12381.swift
 //
-//  Created by Coding Assistant on 19.09.26.
+//  Created by Konstantinos Gaitanis on 19.09.26.
 //
 
-import BigInt
 import CryptoKit
 import Foundation
 
 extension BLS {
     private static let icpG1DomainSeparationTag = Data("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_".utf8)
     private static let icpHashToFieldExtensionDegree = 1
-    private static let icpHashToFieldSecurityLevel = 128
-    private static let icpHashToFieldElementByteCount = Int(
-        ceil((Double(G1.Curve.P.bitWidthIgnoreSign) + Double(icpHashToFieldSecurityLevel)) / 8)
-    )
+    // hash_to_field L = ceil((ceil(log2(p)) + k) / 8), with BLS12-381
+    // base-field p at 381 bits and security parameter k = 128.
+    private static let icpHashToFieldElementByteCount = 64
 
     static func icpHashToG1(message: Data) throws -> G1 {
         let fieldElements = try hashToFieldSync(
@@ -23,7 +21,7 @@ extension BLS {
         )
 
         let mapped = try fieldElements
-            .map { try mapToG1(Fp(value: $0[0])) }
+            .map { try mapToG1($0[0]) }
             .map { P1(simpleProjective: $0) }
 
         let point = try (mapped[0] + mapped[1]).clearCofactor()
@@ -33,20 +31,20 @@ extension BLS {
     private static func hashToFieldSync(
         message: Data,
         elementCount: Int
-    ) throws -> [[BigInt]] {
+    ) throws -> [[Fp]] {
         let byteCount = icpHashToFieldElementByteCount * elementCount * icpHashToFieldExtensionDegree
         let pseudoRandomBytes = expandMessageXMDSync(
             toLength: byteCount,
             message: message
         )
 
-        var elements: [[BigInt]] = []
+        var elements: [[Fp]] = []
         for i in 0..<elementCount {
-            var element: [BigInt] = []
+            var element: [Fp] = []
             for j in 0..<icpHashToFieldExtensionDegree {
                 let offset = icpHashToFieldElementByteCount * (j + i * icpHashToFieldExtensionDegree)
                 let bytes = pseudoRandomBytes[offset..<offset + icpHashToFieldElementByteCount]
-                element.append(mod(a: os2ip(bytes), b: G1.Curve.P))
+                element.append(Fp(storage: MontgomeryFp(reducingWideBytes: Data(bytes))))
             }
             elements.append(element)
         }
@@ -80,12 +78,12 @@ extension BLS {
 
     private static func mapToG1(_ t: Fp) throws -> SimpleProjectivePoint<Fp> {
         let sign = t.sgn0()
-        let z = Fp(value: 11)
-        let a = Fp(value: constants.curveAD)
-        let b = Fp(value: constants.curveBD)
+        let z = Fp(11)
+        let a = constants.curveAD
+        let b = constants.curveBD
         let one = Fp.one
 
-        let tv1 = try t.pow(n: 2) * z
+        let tv1 = try t.pow(exponent: 2) * z
         var w = (tv1 + one) * tv1
         let denominator = a * w
         w = ((w + one) * b).negated()
@@ -93,9 +91,9 @@ extension BLS {
         var x2 = w
         var x3 = tv1 * x2
 
-        let denominator2 = try denominator.pow(n: 2)
+        let denominator2 = try denominator.pow(exponent: 2)
         let denominator3 = denominator2 * denominator
-        var gx1 = try x2.pow(n: 2) + a * denominator2
+        var gx1 = try x2.pow(exponent: 2) + a * denominator2
         gx1 = gx1 * x2 + b * denominator3
 
         let squareCandidate = gx1 * denominator
@@ -103,7 +101,7 @@ extension BLS {
         x2 = x2 * denominatorInverse
         x3 = x3 * denominatorInverse
 
-        let denominatorInverse2 = try denominatorInverse.pow(n: 2)
+        let denominatorInverse2 = try denominatorInverse.pow(exponent: 2)
         let alternateYScale = denominatorInverse2 * tv1 * t
         let alternateSquareCandidate = squareCandidate * z
 
@@ -124,7 +122,7 @@ extension BLS {
     }
 
     private static func isogenyMapG1(x: Fp, y: Fp) throws -> SimpleProjectivePoint<Fp> {
-        let coefficients = constants.pc.map(Fp.init(value:))
+        let coefficients = constants.pc
         var index = 0
         let isox = 11
         let isoy = 3 * (isox - 1) / 2
@@ -172,16 +170,16 @@ private extension Fp {
     }
 
     func sgn0() -> Bool {
-        (value % 2) == 1
+        isOdd
     }
 }
 
 private extension BLS {
     enum constants {
-        static let curveAD = BigInt("144698a3b8e9433d693a02c96d4982b0ea985383ee66a8d8e8981aefd881ac98936f8da0e0f97f5cf428082d584c1d", radix: 16)!
-        static let curveBD = BigInt("12e2908d11688030018b12e8753eee3b2016c1f0f24f4070a0b9c14fcef35ef55a23215a316ceaa5d1cc48e98e172be0", radix: 16)!
+        static let curveAD = Fp(hex: "144698a3b8e9433d693a02c96d4982b0ea985383ee66a8d8e8981aefd881ac98936f8da0e0f97f5cf428082d584c1d")
+        static let curveBD = Fp(hex: "12e2908d11688030018b12e8753eee3b2016c1f0f24f4070a0b9c14fcef35ef55a23215a316ceaa5d1cc48e98e172be0")
 
-        static let pc: [BigInt] = [
+        static let pc: [Fp] = [
             "6e08c248e260e70bd1e962381edee3d31d79d7e22c837bc23c0bf1bc24c6b68c24b1b80b64d391fa9c8ba2e8ba2d229",
             "10321da079ce07e272d8ec09d2565b0dfa7dccdde6787f96d50af36003b14866f69b771f8c285decca67df3f1605fb7b",
             "169b1f8e1bcfa7c42e0c37515d138f22dd2ecb803a0c5c99676314baf4bb1b7fa3190b2edc0327797f241067be390c9e",
@@ -235,6 +233,6 @@ private extension BLS {
             "58df3306640da276faaae7d6e8eb15778c4855551ae7f310c35a5dd279cd2eca6757cd636f96f891e2538b53dbf67f2",
             "1962d75c2381201e1a0cbd6c43c348b885c84ff731c4d59ca4a10356f453e01f78a4260763529e3532f6102c2e49a03d",
             "16112c4c3a9c98b252181140fad0eae9601a6de578980be6eec3232b5be72e7a07f3688ef60c206d01479253b03663c1",
-        ].map { BigInt($0, radix: 16)! }
+        ].map(Fp.init(hex:))
     }
 }

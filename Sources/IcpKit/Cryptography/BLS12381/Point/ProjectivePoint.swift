@@ -177,6 +177,26 @@ extension ProjectivePoint {
     }
     
     /// OK for signature verification, UNSAFE for anythyng relating to private key operations.
+    func unsafeMultiply(scalar: UInt64) throws -> Self {
+        guard scalar > 0 else {
+            throw ProjectivePointError.invalidScalarMustBeLargerThanZero
+        }
+
+        var n = scalar
+        var point = Self.zero
+        var d = self
+
+        while n > 0 {
+            if (n & 1) != 0 {
+                point += d
+            }
+            d.double()
+            n >>= 1
+        }
+        return point
+    }
+
+    /// OK for signature verification, UNSAFE for anythyng relating to private key operations.
     func unsafeMultiply(scalar: BigInt) throws -> Self {
         var n = try Self.validate(scalar: scalar)
         var point = Self.zero
@@ -199,7 +219,7 @@ extension ProjectivePoint {
         var point = zero
         var fake = zero
         var d = lhs
-        var bits = Fp.order
+        var bits = G1.Curve.P
         
         while bits > 0 {
             if (n & 1) != 0 {
