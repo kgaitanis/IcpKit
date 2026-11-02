@@ -11,13 +11,7 @@ extension ICPStateCertificate {
         let message = ICPDomainSeparator("ic-state-root").data + tree.hash()
         try ICPCryptography.verifyBlsSignature(message: message, publicKey: rootKey, signature: signature)
         
-        // TODO: handle delegation
-        // TODO: verify object identifiers for public key in case of delegation
-        //let asn1 = try ASN1Serialization.asn1(fromDER: <delegation_key>)
-        // verify object identifiers :
-        //  .objectIdentifier([1, 3, 6, 1, 4, 1, 44668, 5, 3, 1, 2, 1]),
-        //  .objectIdentifier([1, 3, 6, 1, 4, 1, 44668, 5, 3, 2, 1])
-        //let raw = asn1[0].collectionValue![1].bitStringValue!.bytes
+        // TODO: handle delegation using ICPCryptography.rawBlsPublicKey(fromDER:) to validate its key.
     }
 }
 
