@@ -40,19 +40,20 @@ public enum ICPRequestBuilder {
         }
     }
     
-    public static func buildEnvelope(_ content: ICPRequestContent, sender: ICPSigningPrincipal?) async throws -> ICPRequestEnvelope {
+    public static func buildEnvelope(_ content: ICPRequestContent, sender: ICPSigningPrincipal?, canister: ICPPrincipal? = nil) async throws -> ICPRequestEnvelope {
         guard let sender = sender else {
             return ICPRequestEnvelope(content: content)
         }
+        let senderDelegation = sender.delegationChain
+        guard senderDelegation.count <= 20 else { throw ICPDelegatedIdentity.Error.chainTooLong }
+        try ICPDelegatedIdentity.validateExpiration(senderDelegation, now: ICPDelegatedIdentity.currentTime())
+        // Call/query restrictions apply to the content's destination; read_state needs its URL canister.
+        let destination = (content as? CallRequestContent).map { ICPPrincipal($0.canister_id) } ?? canister
+        try ICPDelegatedIdentity.validateTargets(senderDelegation, canister: destination)
+        let senderPublicKey = try sender.publicKey.derRepresentation
         let requestId = try content.calculateRequestId()
         let senderSignature = try await sender.sign(requestId, domain: "ic-request")
-        let senderPublicKey: Data
-        if let derProvider = sender as? ICPDerPublicKeyProvider {
-            senderPublicKey = derProvider.publicKeyDer
-        } else {
-            senderPublicKey = try ICPCryptography.der(uncompressedEcPublicKey: sender.rawPublicKey)
-        }
-        let senderDelegation = (sender as? ICPDelegationProvider)?.delegationChain
+        try ICPDelegatedIdentity.validateExpiration(senderDelegation, now: ICPDelegatedIdentity.currentTime())
         return ICPRequestEnvelope(
             content: content,
             sender_pubkey: senderPublicKey,

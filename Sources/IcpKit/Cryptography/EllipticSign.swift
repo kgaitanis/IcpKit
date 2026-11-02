@@ -29,10 +29,6 @@ extension ICPCryptography {
 /// https://github.com/horizontalsystems/HsCryptoKit.Swift/blob/main/Sources/HsCryptoKit/EllipticCurveEncrypterSecp256k1.swift
 import secp256k1
 
-enum Secp256k1VerifyError: Error {
-    case invalidPublicKey
-    case invalidSignature
-}
 
 /// Convenience class over libsecp256k1 methods
 private final class EllipticCurveEncrypterSecp256k1 {
@@ -130,46 +126,54 @@ private final class EllipticCurveEncrypterSecp256k1 {
 }
 
 public extension ICPCryptography {
-    static func verifySecp256k1(signatureDER: Data, message: Data, publicKeyUncompressed: Data) throws -> Bool {
-        let context = secp256k1.Context.raw
-        var pubKey = secp256k1_pubkey()
-        let pubKeyResult = publicKeyUncompressed.withUnsafeBytes { buffer -> Int32 in
+    /// Verifies an ICP compact (64-byte r || s) signature over SHA-256(message).
+    static func verifySecp256k1(signature: Data, message: Data, publicKeyUncompressed: Data) throws -> Bool {
+        var publicKey = try parseSecp256k1PublicKey(publicKeyUncompressed)
+        var signature = try parseSecp256k1Signature(signature)
+        // libsecp256k1 only verifies low-S signatures. Both S forms are valid ECDSA.
+        var normalized = secp256k1_ecdsa_signature()
+        secp256k1_ecdsa_signature_normalize(secp256k1.Context.raw, &normalized, &signature)
+        let hash = sha256(message)
+        return hash.withUnsafeBytes { buffer in
+            guard let baseAddress = buffer.baseAddress else { return false }
+            return secp256k1_ecdsa_verify(
+                secp256k1.Context.raw, &normalized,
+                baseAddress.assumingMemoryBound(to: UInt8.self), &publicKey
+            ) == 1
+        }
+    }
+}
+
+extension ICPCryptography {
+    static func validateSecp256k1PublicKey(_ bytes: Data) throws {
+        _ = try parseSecp256k1PublicKey(bytes)
+    }
+
+    private static func parseSecp256k1PublicKey(_ bytes: Data) throws -> secp256k1_pubkey {
+        guard bytes.count == 65, bytes.first == 4 else { throw ICPPublicKey.Error.invalidPublicKey }
+        var key = secp256k1_pubkey()
+        let result = bytes.withUnsafeBytes { buffer -> Int32 in
             guard let baseAddress = buffer.baseAddress else { return 0 }
             return secp256k1_ec_pubkey_parse(
-                context,
-                &pubKey,
-                baseAddress.assumingMemoryBound(to: UInt8.self),
-                publicKeyUncompressed.count
+                secp256k1.Context.raw, &key,
+                baseAddress.assumingMemoryBound(to: UInt8.self), bytes.count
             )
         }
-        guard pubKeyResult == 1 else {
-            throw Secp256k1VerifyError.invalidPublicKey
-        }
+        guard result == 1 else { throw ICPPublicKey.Error.invalidPublicKey }
+        return key
+    }
 
+    private static func parseSecp256k1Signature(_ bytes: Data) throws -> secp256k1_ecdsa_signature {
+        guard bytes.count == 64 else { throw ICPPublicKey.Error.invalidSignature }
         var signature = secp256k1_ecdsa_signature()
-        let signatureResult = signatureDER.withUnsafeBytes { buffer -> Int32 in
+        let result = bytes.withUnsafeBytes { buffer -> Int32 in
             guard let baseAddress = buffer.baseAddress else { return 0 }
-            return secp256k1_ecdsa_signature_parse_der(
-                context,
-                &signature,
-                baseAddress.assumingMemoryBound(to: UInt8.self),
-                signatureDER.count
+            return secp256k1_ecdsa_signature_parse_compact(
+                secp256k1.Context.raw, &signature,
+                baseAddress.assumingMemoryBound(to: UInt8.self)
             )
         }
-        guard signatureResult == 1 else {
-            throw Secp256k1VerifyError.invalidSignature
-        }
-
-        let hash = ICPCryptography.sha256(message)
-        let verifyResult = hash.withUnsafeBytes { buffer -> Int32 in
-            guard let baseAddress = buffer.baseAddress else { return 0 }
-            return secp256k1_ecdsa_verify(
-                context,
-                &signature,
-                baseAddress.assumingMemoryBound(to: UInt8.self),
-                &pubKey
-            )
-        }
-        return verifyResult == 1
+        guard result == 1 else { throw ICPPublicKey.Error.invalidSignature }
+        return signature
     }
 }

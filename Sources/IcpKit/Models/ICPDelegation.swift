@@ -8,7 +8,7 @@ import Candid
 /// A delegation from one key to another.
 /// If key A signs a delegation containing key B, then key B may be used to authenticate
 /// as key A's corresponding principal.
-public struct ICPDelegation: Codable, Equatable {
+public struct ICPDelegation: Codable, Equatable, Sendable {
     /// The delegated-to key (DER-encoded public key).
     public let pubkey: Data
     /// A nanosecond timestamp after which this delegation is no longer valid.
@@ -26,20 +26,24 @@ public struct ICPDelegation: Codable, Equatable {
         case pubkey
         case expiration
         case targets
+        case permissions
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        guard !container.contains(.permissions) else {
+            throw DecodingError.dataCorruptedError(forKey: .permissions, in: container, debugDescription: "Delegation permissions are not supported.")
+        }
         self.pubkey = try container.decode(Data.self, forKey: .pubkey)
         self.expiration = try container.decode(UInt64.self, forKey: .expiration)
-        self.targets = try container.decodeIfPresent([ICPPrincipal].self, forKey: .targets)
+        self.targets = try container.decodeIfPresent([Data].self, forKey: .targets)?.map { ICPPrincipal($0) }
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(pubkey, forKey: .pubkey)
         try container.encode(expiration, forKey: .expiration)
-        try container.encodeIfPresent(targets, forKey: .targets)
+        try container.encodeIfPresent(targets?.map(\.bytes), forKey: .targets)
     }
 
     /// Returns the request-id hash of this delegation (used as the message for signing).
@@ -56,7 +60,7 @@ public struct ICPDelegation: Codable, Equatable {
 }
 
 /// A delegation that has been signed by a principal.
-public struct ICPSignedDelegation: Codable, Equatable {
+public struct ICPSignedDelegation: Codable, Equatable, Sendable {
     public let delegation: ICPDelegation
     public let signature: Data
 
@@ -64,14 +68,4 @@ public struct ICPSignedDelegation: Codable, Equatable {
         self.delegation = delegation
         self.signature = signature
     }
-}
-
-/// Provides a chain of delegations to include in the request envelope.
-public protocol ICPDelegationProvider {
-    var delegationChain: [ICPSignedDelegation] { get }
-}
-
-/// Provides a DER-encoded public key.
-public protocol ICPDerPublicKeyProvider {
-    var publicKeyDer: Data { get }
 }

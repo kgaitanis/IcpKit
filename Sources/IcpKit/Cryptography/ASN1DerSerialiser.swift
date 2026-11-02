@@ -1,9 +1,3 @@
-//
-//  ASN1DerSerializer.swift
-//
-//  Created by Konstantinos Gaitanis on 20.04.23.
-//
-
 import Foundation
 @preconcurrency import PotentASN1
 
@@ -14,8 +8,6 @@ private enum ObjectIdentifiers {
     // https://docs.internetcomputer.org/references/ic-interface-spec/certification/
     static let blsPublicKey: ASN1 = .objectIdentifier([1, 3, 6, 1, 4, 1, 44668, 5, 3, 1, 2, 1])
     static let blsCurve: ASN1 = .objectIdentifier([1, 3, 6, 1, 4, 1, 44668, 5, 3, 2, 1])
-    static let ecPublicKey: ASN1 = .objectIdentifier([1, 2, 840, 10045, 2, 1])  // Asymmetric Encryption Algorithms: ECC (ecPublicKey)
-    static let secp256k1: ASN1 = .objectIdentifier([1, 3, 132, 0, 10])          // ECC Name Curves: Secp256k1
 }
 
 extension ICPCryptography {
@@ -41,20 +33,18 @@ extension ICPCryptography {
         return key
     }
 
+    /// Compatibility entry point for uncompressed secp256k1 public keys.
     static func der(uncompressedEcPublicKey publicKey: Data) throws -> Data {
-        guard publicKey.count == 65,
-              publicKey.first == 0x04 else {
+        do {
+            return try ICPPublicKey(rawRepresentation: publicKey, algorithm: .secp256k1).derRepresentation
+        } catch {
             throw DERSerialisationError.invalidEcPublicKey
         }
-        let encoded = try PotentASN1.ASN1Serialization.der(from:
-            .sequence([
-                .sequence([
-                    ObjectIdentifiers.ecPublicKey,
-                    ObjectIdentifiers.secp256k1
-                ]),
-                .bitString(0, publicKey)    // not sure why we pass 0 here
-            ])
-        )
-        return encoded
+    }
+
+    /// Decodes and validates a supported DER SubjectPublicKeyInfo public key.
+    /// Use ICPPublicKey(derRepresentation:) when the algorithm is also needed.
+    public static func decode(derEncodedPublicKey: Data) throws -> Data {
+        try ICPPublicKey(derRepresentation: derEncodedPublicKey).rawRepresentation
     }
 }

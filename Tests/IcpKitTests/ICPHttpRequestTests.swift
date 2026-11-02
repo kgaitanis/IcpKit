@@ -38,7 +38,7 @@ final class ICPHttpRequestTests: XCTestCase {
     func testRequestIncludesDelegation() async throws {
         let delegation = ICPDelegation(
             pubkey: Data([0xAA, 0xBB]),
-            expiration: 1_700_000_000_000_000_000,
+            expiration: 4_000_000_000_000_000_000,
             targets: [ICPSystemCanisters.ledger]
         )
         let signedDelegation = ICPSignedDelegation(
@@ -48,7 +48,7 @@ final class ICPHttpRequestTests: XCTestCase {
 
         let mock = MockSigningPrincipal(
             principal: ICPPrincipal(Data([0x01])),
-            publicKeyDer: Data([0x30, 0x01, 0x02]),
+            publicKey: try DelegationTestSigner().publicKey,
             signature: Data([0x99, 0x88]),
             delegationChain: [signedDelegation]
         )
@@ -65,7 +65,7 @@ final class ICPHttpRequestTests: XCTestCase {
         let cborBodyWithoutTag = Data(cborBody.suffix(from: 3))
         let decodedBody = try CBORDecoder.default.decode(ReadRequestDecodable.self, from: cborBodyWithoutTag)
 
-        XCTAssertEqual(decodedBody.sender_pubkey, mock.publicKeyDer)
+        XCTAssertEqual(decodedBody.sender_pubkey, try mock.publicKey.derRepresentation)
         XCTAssertEqual(decodedBody.sender_sig, mock.signature)
         XCTAssertEqual(decodedBody.sender_delegation, mock.delegationChain)
     }
@@ -86,20 +86,12 @@ private struct ReadRequestDecodable: Decodable {
     }
 }
 
-private struct MockSigningPrincipal: ICPSigningPrincipal, ICPDelegationProvider, ICPDerPublicKeyProvider {
+private struct MockSigningPrincipal: ICPSigningPrincipal {
     let principal: ICPPrincipal
-    let rawPublicKey: Data
-    let publicKeyDer: Data
+    let publicKey: ICPPublicKey
     let signature: Data
     let delegationChain: [ICPSignedDelegation]
-
-    init(principal: ICPPrincipal, publicKeyDer: Data, signature: Data, delegationChain: [ICPSignedDelegation]) {
-        self.principal = principal
-        self.rawPublicKey = Data([0x04])
-        self.publicKeyDer = publicKeyDer
-        self.signature = signature
-        self.delegationChain = delegationChain
-    }
+    var rawPublicKey: Data { publicKey.rawRepresentation }
 
     func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data {
         signature

@@ -1,162 +1,97 @@
-//
-//  ICPDelegatedIdentity.swift
-//
-
 import Foundation
-import CryptoKit
-@preconcurrency import PotentASN1
 
-/// An identity that has been delegated the authority to authenticate as a different principal.
-/// Note: This type validates the delegation chain during initialization.
-public final class ICPDelegatedIdentity: ICPSigningPrincipal, ICPDelegationProvider, ICPDerPublicKeyProvider {
-    public enum Error: Swift.Error {
-        case invalidDerPublicKey
-        case unsupportedAlgorithm
-        case invalidSignature
-        case brokenChain
+/// A validated root-to-leaf delegation chain backed by a signing identity.
+/// Supports plain secp256k1, P-256 and Ed25519 signatures only.
+public final class ICPDelegatedIdentity: ICPSigningPrincipal {
+    public enum Error: Swift.Error, Equatable {
         case signingKeyMismatch
+        case invalidSignature
+        case expiredDelegation
+        case repeatedPublicKey
+        case chainTooLong
+        case tooManyTargets
+        case missingCanister
+        case targetNotAllowed
     }
 
-    private enum PublicKeyAlgorithm {
-        case secp256k1
-        case p256
-        case ed25519
-    }
-
-    private struct ParsedPublicKey {
-        let algorithm: PublicKeyAlgorithm
-        let keyBytes: Data
-    }
-
+    public let publicKey: ICPPublicKey
+    public var rawPublicKey: Data { publicKey.rawRepresentation }
+    /// Cached hash-derived identifier; the public key itself is stored only once.
     public let principal: ICPPrincipal
-    /// For this type, `rawPublicKey` is the DER-encoded public key.
-    public let rawPublicKey: Data
-    public let publicKeyDer: Data
-    public var delegationChain: [ICPSignedDelegation] {
-        let baseChain = (signingIdentity as? ICPDelegationProvider)?.delegationChain ?? []
-        return baseChain + chain
+    public let delegationChain: [ICPSignedDelegation]
+
+    private let signingIdentity: any ICPSigningPrincipal
+    private let now: @Sendable () -> UInt64
+
+    public convenience init(fromPublicKeyDer publicKeyDer: Data, to principal: any ICPSigningPrincipal, chain: [ICPSignedDelegation]) throws {
+        try self.init(fromPublicKeyDer: publicKeyDer, to: principal, chain: chain, now: Self.currentTime)
     }
 
-    private let signingIdentity: ICPSigningPrincipal
-    private let chain: [ICPSignedDelegation]
+    /// Internal clock injection keeps expiry boundary tests deterministic.
+    init(fromPublicKeyDer publicKeyDer: Data, to principal: any ICPSigningPrincipal, chain: [ICPSignedDelegation], now: @escaping @Sendable () -> UInt64) throws {
+        let root = try ICPPublicKey(derRepresentation: publicKeyDer)
+        let signerKey = try principal.publicKey
+        let inherited = principal.delegationChain
+        let combined = chain + inherited
+        guard combined.count <= 20 else { throw Error.chainTooLong }
 
-    /// Creates a delegated identity that signs using `to`, for the principal corresponding to `fromPublicKeyDer`.
-    ///
-    /// - Parameters:
-    ///   - fromPublicKeyDer: DER-encoded public key of the delegated-from principal.
-    ///   - to: The signing identity used to sign requests.
-    ///   - chain: Delegations connecting `fromPublicKeyDer` to `to.publicKey`, in order.
-    public init(fromPublicKeyDer: Data, to: ICPSigningPrincipal, chain: [ICPSignedDelegation]) throws {
-        try ICPDelegatedIdentity.validateChain(fromPublicKeyDer: fromPublicKeyDer, to: to, chain: chain)
-        self.publicKeyDer = fromPublicKeyDer
-        self.rawPublicKey = fromPublicKeyDer
-        self.principal = ICPCryptography.selfAuthenticatingPrincipal(derPublicKey: fromPublicKeyDer)
-        self.signingIdentity = to
-        self.chain = chain
-    }
+        // The supplied prefix must end at the wrapped identity's root key.
+        let endpoint = try chain.last.map { try ICPPublicKey(derRepresentation: $0.delegation.pubkey) } ?? root
+        guard endpoint == signerKey else { throw Error.signingKeyMismatch }
+        try Self.validateChain(combined, root: root)
+        try Self.validateExpiration(combined, now: now())
 
-    /// Creates a delegated identity without validating the delegation chain.
-    public static func unchecked(fromPublicKeyDer: Data, to: ICPSigningPrincipal, chain: [ICPSignedDelegation]) -> ICPDelegatedIdentity {
-        ICPDelegatedIdentity(uncheckedFromPublicKeyDer: fromPublicKeyDer, to: to, chain: chain)
-    }
-
-    private init(uncheckedFromPublicKeyDer: Data, to: ICPSigningPrincipal, chain: [ICPSignedDelegation]) {
-        self.publicKeyDer = uncheckedFromPublicKeyDer
-        self.rawPublicKey = uncheckedFromPublicKeyDer
-        self.principal = ICPCryptography.selfAuthenticatingPrincipal(derPublicKey: uncheckedFromPublicKeyDer)
-        self.signingIdentity = to
-        self.chain = chain
+        self.publicKey = root
+        self.principal = try ICPPrincipal(publicKey: root)
+        self.signingIdentity = principal
+        self.delegationChain = combined
+        self.now = now
     }
 
     public func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data {
-        try await signingIdentity.sign(message, domain: domain)
+        try Self.validateExpiration(delegationChain, now: now())
+        let signature = try await signingIdentity.sign(message, domain: domain)
+        // An arbitrary conformer may change its chain or signing key after construction.
+        // Verify the returned signature against our immutable chain snapshot.
+        let leaf = try delegationChain.last.map { try ICPPublicKey(derRepresentation: $0.delegation.pubkey) } ?? publicKey
+        try ICPCryptography.verify(signature: signature, message: domain.domainSeparatedData(message), publicKey: leaf)
+        try Self.validateExpiration(delegationChain, now: now())
+        return signature
     }
-}
 
-private extension ICPDelegatedIdentity {
-    static let ecPublicKeyOid: [UInt64] = [1, 2, 840, 10045, 2, 1]
-    static let secp256k1Oid: [UInt64] = [1, 3, 132, 0, 10]
-    static let prime256v1Oid: [UInt64] = [1, 2, 840, 10045, 3, 1, 7]
-    static let ed25519Oid: [UInt64] = [1, 3, 101, 112]
+    static func currentTime() -> UInt64 {
+        UInt64(max(0, Date.now.timeIntervalSince1970) * 1_000_000_000)
+    }
 
-    static func validateChain(fromPublicKeyDer: Data, to: ICPSigningPrincipal, chain: [ICPSignedDelegation]) throws {
-        var lastVerifiedDer = fromPublicKeyDer
+    static func validateExpiration(_ chain: [ICPSignedDelegation], now: UInt64) throws {
+        guard chain.allSatisfy({ $0.delegation.expiration > now }) else {
+            throw Error.expiredDelegation
+        }
+    }
+
+    static func validateTargets(_ chain: [ICPSignedDelegation], canister: ICPPrincipal?) throws {
         for signed in chain {
-            let parsedKey = try parseDerPublicKey(lastVerifiedDer)
-            let message = try signed.delegation.signable()
-            try verify(signature: signed.signature, message: message, with: parsedKey)
-            lastVerifiedDer = signed.delegation.pubkey
-        }
-
-        let signingKeyDer: Data
-        if let derProvider = to as? ICPDerPublicKeyProvider {
-            signingKeyDer = derProvider.publicKeyDer
-        } else {
-            signingKeyDer = try ICPCryptography.der(uncompressedEcPublicKey: to.rawPublicKey)
-        }
-
-        guard lastVerifiedDer == signingKeyDer else {
-            throw Error.signingKeyMismatch
+            guard let targets = signed.delegation.targets else { continue }
+            guard targets.count <= 1_000 else { throw Error.tooManyTargets }
+            guard let canister else { throw Error.missingCanister }
+            guard targets.contains(where: { $0.bytes == canister.bytes }) else { throw Error.targetNotAllowed }
         }
     }
 
-    private static func parseDerPublicKey(_ der: Data) throws -> ParsedPublicKey {
-        let values = try ASN1Serialization.asn1(fromDER: der)
-        guard let value = values.first,
-              case .sequence(let topLevel) = value,
-              topLevel.count >= 2,
-              case .sequence(let algorithmItems) = topLevel[0].absolute,
-              let bitString = topLevel[1].bitStringValue else {
-            throw Error.invalidDerPublicKey
-        }
-
-        guard let algorithmOid = algorithmItems.first?.objectIdentifierValue?.fields else {
-            throw Error.invalidDerPublicKey
-        }
-
-        if algorithmOid == ecPublicKeyOid {
-            guard algorithmItems.count >= 2,
-                  let curveOid = algorithmItems[1].objectIdentifierValue?.fields else {
-                throw Error.invalidDerPublicKey
-            }
-            if curveOid == secp256k1Oid {
-                return ParsedPublicKey(algorithm: .secp256k1, keyBytes: bitString.bytes)
-            }
-            if curveOid == prime256v1Oid {
-                return ParsedPublicKey(algorithm: .p256, keyBytes: bitString.bytes)
-            }
-            throw Error.unsupportedAlgorithm
-        }
-
-        if algorithmOid == ed25519Oid {
-            return ParsedPublicKey(algorithm: .ed25519, keyBytes: bitString.bytes)
-        }
-
-        throw Error.unsupportedAlgorithm
-    }
-
-    private static func verify(signature: Data, message: Data, with key: ParsedPublicKey) throws {
-        switch key.algorithm {
-        case .secp256k1:
-            let isValid = try ICPCryptography.verifySecp256k1(
-                signatureDER: signature,
-                message: message,
-                publicKeyUncompressed: key.keyBytes
-            )
-            guard isValid else { throw Error.invalidSignature }
-
-        case .p256:
-            let publicKey = try P256.Signing.PublicKey(x963Representation: key.keyBytes)
-            let signature = try P256.Signing.ECDSASignature(derRepresentation: signature)
-            guard publicKey.isValidSignature(signature, for: message) else {
+    private static func validateChain(_ chain: [ICPSignedDelegation], root: ICPPublicKey) throws {
+        var key = root
+        var seen = [root]
+        for signed in chain {
+            guard (signed.delegation.targets?.count ?? 0) <= 1_000 else { throw Error.tooManyTargets }
+            let next = try ICPPublicKey(derRepresentation: signed.delegation.pubkey)
+            guard !seen.contains(next) else { throw Error.repeatedPublicKey }
+            do {
+                try ICPCryptography.verify(signature: signed.signature, message: signed.delegation.signable(), publicKey: key)
+            } catch {
                 throw Error.invalidSignature
             }
-
-        case .ed25519:
-            let publicKey = try Curve25519.Signing.PublicKey(rawRepresentation: key.keyBytes)
-            guard publicKey.isValidSignature(signature, for: message) else {
-                throw Error.invalidSignature
-            }
+            seen.append(next)
+            key = next
         }
     }
 }
