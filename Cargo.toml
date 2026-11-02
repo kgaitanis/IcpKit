@@ -2,3 +2,10 @@
 members = [
     "Sources/bls12381"
 ]
+
+# The FFI panic guard requires unwinding, including in release XCFrameworks.
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"

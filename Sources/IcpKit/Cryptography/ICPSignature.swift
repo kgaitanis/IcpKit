@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import bls12381
 
 public extension ICPCryptography {
     /// https://internetcomputer.org/docs/current/references/ic-interface-spec/#signatures
@@ -18,34 +19,39 @@ public extension ICPCryptography {
     }
     
     static func verifyBlsSignature(message: any DataProtocol, publicKey: any DataProtocol, signature: any DataProtocol) throws {
-        // TODO: Link to Rust library
-        return
-//        guard let _ = bls_instance else {
-//            throw BlsRustError.notInstantiated
-//        }
-//        try Data(signature).withUnsafeBytes { signaturePointer in
-//            try Data(message).withUnsafeBytes { messagePointer in
-//                try Data(publicKey).withUnsafeBytes { publicKeyPointer in
-//                    let i = bls_verify(signature.count, signaturePointer.baseAddress,
-//                                       message.count, messagePointer.baseAddress,
-//                                       publicKey.count, publicKeyPointer.baseAddress)
-//                    guard i == 1 else {
-//                        throw ICPStateCertificateError.invalidSignature
-//                    }
-//                }
-//            }
-//        }
+        switch blsInitializationStatus {
+        case 1:
+            break
+        case -1:
+            throw BlsRustError.panic
+        default:
+            throw BlsRustError.notInstantiated
+        }
+        try Data(signature).withUnsafeBytes { signaturePointer in
+            try Data(message).withUnsafeBytes { messagePointer in
+                try Data(publicKey).withUnsafeBytes { publicKeyPointer in
+                    let i = bls_verify(signature.count, signaturePointer.baseAddress,
+                                       message.count, messagePointer.baseAddress,
+                                       publicKey.count, publicKeyPointer.baseAddress)
+                    switch i {
+                    case 1:
+                        break
+                    case 0:
+                        throw ICPStateCertificateError.invalidSignature
+                    default:
+                        throw BlsRustError.panic
+                    }
+                }
+            }
+        }
     }
     
-//    private static let bls_instance = BlsInstance()
+    private static let blsInitializationStatus = bls_instantiate()
 }
 
-//private enum BlsRustError: Error {
-//    case notInstantiated
-//}
-//
-//private class BlsInstance {
-//    init?() {
-//        guard bls_instantiate() == 1 else { return nil }
-//    }
-//}
+/// Unexpected failures in the Rust BLS implementation.
+/// Invalid signatures throw `ICPStateCertificateError.invalidSignature`.
+public enum BlsRustError: Error, Equatable {
+    case notInstantiated
+    case panic
+}

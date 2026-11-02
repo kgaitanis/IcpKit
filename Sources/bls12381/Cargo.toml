@@ -7,3 +7,6 @@ edition = "2018"
 [lib]
 name = "bls12381"
 crate-type = ["staticlib"]
+
+[dev-dependencies]
+hex = "0.4"
