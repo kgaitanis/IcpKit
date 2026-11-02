@@ -151,7 +151,7 @@ public class CandidCodeGenerator {
         IndentedString(
             "//",
             "// This file was generated using IcpKit CandidCodeGenerator",
-            "// For more information visit https://github.com/kosta-bity/IcpKit",
+            "// For more information visit https://github.com/kgaitanis/IcpKit",
             "//",
             "",
             "import Foundation",
