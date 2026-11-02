@@ -9,4 +9,5 @@ DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
-Binaries
+/Binaries/*
+!/Binaries/Bls12381.xcframework/

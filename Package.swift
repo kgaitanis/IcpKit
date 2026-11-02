@@ -36,11 +36,7 @@ let package = Package(
                 "BigInt",
                 .product(name: "secp256k1", package: "secp256k1.swift"),
                 .target(name: "bls12381"),
-            ],
-            cSettings: [.headerSearchPath("Sources/bls12381/include"),
-                        .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])],
-            cxxSettings: [.headerSearchPath("Sources/bls12381/include"),
-                          .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])]
+            ]
         ),
         .target(
             name: "Candid",

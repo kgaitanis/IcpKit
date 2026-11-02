@@ -39,6 +39,25 @@ import Candid  // not needed when using the CodeGenerator
 import IcpKit
 ```
 
+### Prebuilt cryptography library
+
+IcpKit includes `Binaries/Bls12381.xcframework`. Swift Package Manager links this
+prebuilt Rust library automatically; users do not need Rust or Cargo installed.
+It supports iOS 16+ devices (ARM64), iOS simulators (ARM64 and x86_64), macOS 13+
+(ARM64 and x86_64), and Mac Catalyst 16+ (ARM64 and x86_64).
+
+Maintainers regenerating the binary need Xcode and Rust installed, with these targets:
+
+```sh
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
+    aarch64-apple-darwin x86_64-apple-darwin \
+    aarch64-apple-ios-macabi x86_64-apple-ios-macabi
+bash compile_rust_ios.sh
+```
+
+Commit the complete regenerated XCFramework alongside source changes before tagging
+a release. The script is a maintainer tool and is never run during package installation.
+
 ## What does it do?
 
 IcpKit will take care of all the encoding, serialisation and cryptography required to communicate with ICP allowing developers to focus on the real functionality of their app and bootstrapping their development cycle.
