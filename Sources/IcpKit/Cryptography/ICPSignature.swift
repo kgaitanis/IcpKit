@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import CryptoKit
 import bls12381
 
 public extension ICPCryptography {
@@ -54,4 +55,27 @@ public extension ICPCryptography {
 public enum BlsRustError: Error, Equatable {
     case notInstantiated
     case panic
+}
+
+extension ICPCryptography {
+    static func verify(signature: Data, message: Data, publicKey: ICPPublicKey) throws {
+        guard signature.count == 64 else { throw ICPPublicKey.Error.invalidSignature }
+        do {
+            let valid: Bool
+            switch publicKey.algorithm {
+            case .secp256k1:
+                valid = try verifySecp256k1(signature: signature, message: message, publicKeyUncompressed: publicKey.rawRepresentation)
+            case .p256:
+                let key = try P256.Signing.PublicKey(x963Representation: publicKey.rawRepresentation)
+                let signature = try P256.Signing.ECDSASignature(rawRepresentation: signature)
+                valid = key.isValidSignature(signature, for: message)
+            case .ed25519:
+                let key = try Curve25519.Signing.PublicKey(rawRepresentation: publicKey.rawRepresentation)
+                valid = key.isValidSignature(signature, for: message)
+            }
+            guard valid else { throw ICPPublicKey.Error.invalidSignature }
+        } catch {
+            throw ICPPublicKey.Error.invalidSignature
+        }
+    }
 }

@@ -29,6 +29,7 @@ extension ICPCryptography {
 /// https://github.com/horizontalsystems/HsCryptoKit.Swift/blob/main/Sources/HsCryptoKit/EllipticCurveEncrypterSecp256k1.swift
 import secp256k1
 
+
 /// Convenience class over libsecp256k1 methods
 private final class EllipticCurveEncrypterSecp256k1 {
     // holds internal state of the c library
@@ -122,4 +123,67 @@ private final class EllipticCurveEncrypterSecp256k1 {
         return output
     }
     
+}
+
+public extension ICPCryptography {
+    /// Verifies an ICP compact (64-byte r || s) signature over SHA-256(message).
+    ///
+    /// Both low-S and high-S ECDSA signatures are accepted.
+    /// - Parameters:
+    ///   - signature: A 64-byte compact `r || s` signature without a recovery identifier.
+    ///   - message: The bytes to hash with SHA-256 before verification. Include any
+    ///     required domain separator; this method does not prepend one.
+    ///   - publicKeyUncompressed: An uncompressed 65-byte secp256k1 public key.
+    /// - Returns: Whether the signature authenticates the message.
+    /// - Throws: `ICPPublicKey.Error.invalidPublicKey` or
+    ///   `ICPPublicKey.Error.invalidSignature` if either input cannot be parsed.
+    static func verifySecp256k1(signature: Data, message: Data, publicKeyUncompressed: Data) throws -> Bool {
+        var publicKey = try parseSecp256k1PublicKey(publicKeyUncompressed)
+        var signature = try parseSecp256k1Signature(signature)
+        // libsecp256k1 only verifies low-S signatures. Both S forms are valid ECDSA.
+        var normalized = secp256k1_ecdsa_signature()
+        secp256k1_ecdsa_signature_normalize(secp256k1.Context.raw, &normalized, &signature)
+        let hash = sha256(message)
+        return hash.withUnsafeBytes { buffer in
+            guard let baseAddress = buffer.baseAddress else { return false }
+            return secp256k1_ecdsa_verify(
+                secp256k1.Context.raw, &normalized,
+                baseAddress.assumingMemoryBound(to: UInt8.self), &publicKey
+            ) == 1
+        }
+    }
+}
+
+extension ICPCryptography {
+    static func validateSecp256k1PublicKey(_ bytes: Data) throws {
+        _ = try parseSecp256k1PublicKey(bytes)
+    }
+
+    private static func parseSecp256k1PublicKey(_ bytes: Data) throws -> secp256k1_pubkey {
+        guard bytes.count == 65, bytes.first == 4 else { throw ICPPublicKey.Error.invalidPublicKey }
+        var key = secp256k1_pubkey()
+        let result = bytes.withUnsafeBytes { buffer -> Int32 in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return secp256k1_ec_pubkey_parse(
+                secp256k1.Context.raw, &key,
+                baseAddress.assumingMemoryBound(to: UInt8.self), bytes.count
+            )
+        }
+        guard result == 1 else { throw ICPPublicKey.Error.invalidPublicKey }
+        return key
+    }
+
+    private static func parseSecp256k1Signature(_ bytes: Data) throws -> secp256k1_ecdsa_signature {
+        guard bytes.count == 64 else { throw ICPPublicKey.Error.invalidSignature }
+        var signature = secp256k1_ecdsa_signature()
+        let result = bytes.withUnsafeBytes { buffer -> Int32 in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return secp256k1_ecdsa_signature_parse_compact(
+                secp256k1.Context.raw, &signature,
+                baseAddress.assumingMemoryBound(to: UInt8.self)
+            )
+        }
+        guard result == 1 else { throw ICPPublicKey.Error.invalidSignature }
+        return signature
+    }
 }

@@ -1,19 +1,12 @@
-//
-//  SelfAuthenticatingId.swift
-//
-//  Created by Konstantinos Gaitanis on 25.04.23.
-//
-
 import Foundation
 
 public extension ICPCryptography {
-    /// Principal with Self-Authenticating ID
-    /// These have the form H(ec_public_key) · 0x02 (29 bytes).
-    /// ec_public_key in raw uncompressed form (65 bytes) 0x04·X·Y
+    /// Compatibility helper for a self-authenticating secp256k1 principal.
+    ///
+    /// - Parameter publicKey: An uncompressed 65-byte secp256k1 public key.
+    /// - Returns: SHA-224 of the DER-encoded key followed by the self-authenticating tag.
+    /// - Throws: An error validating or DER-encoding the key.
     static func selfAuthenticatingPrincipal(uncompressedPublicKey publicKey: Data) throws -> ICPPrincipal {
-        let serialized = try ICPCryptography.der(uncompressedEcPublicKey: publicKey)
-        let hash = ICPCryptography.sha224(serialized)
-        let bytes = hash + Data([0x02])
-        return ICPPrincipal(bytes)
+        try ICPPrincipal(publicKey: ICPPublicKey(rawRepresentation: publicKey, algorithm: .secp256k1))
     }
 }

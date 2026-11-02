@@ -41,7 +41,7 @@ public struct ICPRequest {
     public init(_ request: ICPRequestType, canister: ICPPrincipal, sender: ICPSigningPrincipal? = nil, network: ICPNetwork = .mainnet) async throws {
         let content = try ICPRequestBuilder.buildContent(request, sender: sender?.principal)
         requestId = try content.calculateRequestId()
-        let envelope = try await ICPRequestBuilder.buildEnvelope(content, sender: sender)
+        let envelope = try await ICPRequestBuilder.buildEnvelope(content, sender: sender, canister: canister)
         let rawBody = try ICPCryptography.CBOR.serialise(envelope)
         httpRequest = HttpRequest(
             method: "POST",

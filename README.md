@@ -496,6 +496,64 @@ final class SimpleSigningPrincipal: ICPSigningPrincipal {
 }
 ```
 
+### Delegated Identity
+
+`ICPDelegatedIdentity` authenticates as a root principal while a session key signs requests. Its chain is ordered from the root key to the session key. Wrapping another delegated identity appends that identity's chain in the same order.
+
+`ICPPublicKey` stores an algorithm and validated raw bytes, and computes DER. It supports plain secp256k1, P-256, and Ed25519 keys. EC raw keys are uncompressed X9.63 points; Ed25519 keys are 32 bytes. The principal is SHA-224 of the DER key, followed by `0x02`.
+
+Existing secp256k1 implementations of `ICPSigningPrincipal` remain source-compatible: `publicKey` defaults to a secp256k1 key made from `rawPublicKey`, and `delegationChain` defaults to `[]`. Other algorithms supply their typed `publicKey`. An empty chain is omitted from the request envelope. Raw public keys never contain DER.
+
+Here is a complete P-256 example (keep production private keys in appropriate secure storage):
+
+```swift
+import Foundation
+import CryptoKit
+import IcpKit
+
+struct P256Identity: ICPSigningPrincipal {
+    private let key: P256.Signing.PrivateKey
+    let publicKey: ICPPublicKey
+    let principal: ICPPrincipal
+    var rawPublicKey: Data { publicKey.rawRepresentation }
+
+    init() throws {
+        key = P256.Signing.PrivateKey()
+        publicKey = try ICPPublicKey(
+            rawRepresentation: key.publicKey.x963Representation,
+            algorithm: .p256
+        )
+        principal = try ICPPrincipal(publicKey: publicKey)
+    }
+
+    func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data {
+        try key.signature(for: domain.domainSeparatedData(message)).rawRepresentation
+    }
+}
+
+let root = try P256Identity()
+let session = try P256Identity()
+let delegation = try ICPDelegation(
+    pubkey: session.publicKey.derRepresentation,
+    expiration: UInt64(Date.now.addingTimeInterval(3600).timeIntervalSince1970 * 1_000_000_000)
+)
+let signature = try await root.signDelegation(delegation)
+let identity = try ICPDelegatedIdentity(
+    fromPublicKeyDer: root.publicKey.derRepresentation,
+    to: session,
+    chain: [ICPSignedDelegation(delegation: delegation, signature: signature)]
+)
+// Pass identity as the sender of an ICPRequest.
+```
+
+ECDSA signatures must be 64-byte `r || s`, not DER. `signDelegation` applies the delegation domain separator exactly once through `sign(_:domain:)`.
+
+Construction validates keys, every delegation signature, endpoint matching, expiry, cycles, and protocol limits (20 delegations; 1,000 targets per delegation). There is no unchecked initializer. Key parsing throws `ICPPublicKey.Error`; chain and request restrictions throw `ICPDelegatedIdentity.Error`. Expiry is rechecked before and after signing, and the resulting signature is verified against the final key.
+
+`targets: nil` permits any destination; `targets: []` permits none. Every restricted link must allow the request's canister. `ICPRequest` supplies canister context automatically. Direct users of `buildEnvelope` must pass `canister:` for restricted `read_state` requests; call/query requests use their content's canister.
+
+WebAuthn and canister signatures are unsupported and fail validation. This does not provide full Internet Identity compatibility. Decoding a delegation containing `permissions` fails explicitly rather than silently discarding a signed field.
+
 ## Known Limitations
 
 - Serialisation of recursive candid values leads to infinite loop.
