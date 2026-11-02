@@ -149,12 +149,15 @@ The [Ledger Canister](Sources/IcpKit/Canisters/ICPLedgerCanister.swift) is provi
 
 ##### Local replica / Pocket-IC
 
-When using a local replica, you need to point the client to the local host and fetch the root key once so that certificate verification can succeed.
+`ICPNetwork.mainnet` includes the pinned mainnet root public key. Certificate signatures are verified whenever the network has a root key. Custom and local networks default to `nil`, which skips signature verification; there is no fallback to the mainnet key. Use `network.withRootKey(nil)` to clear a configured key.
+
+For a local replica, create a client pointing to the local host and fetch its root key:
 
 ```swift
-let local = ICPNetwork.local(baseURL: URL(string: "http://127.0.0.1:4943")!, verifyCertificates: true)
+let local = ICPNetwork.local(baseURL: URL(string: "http://127.0.0.1:4943")!)
 let client = ICPRequestClient(network: local)
 let rootKey = try await client.fetchRootKey()
+// fetchRootKey() validates the DER encoding and returns the raw BLS key.
 let verifiedClient = client.withRootKey(rootKey)
 ```
 

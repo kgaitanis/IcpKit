@@ -39,6 +39,7 @@ public enum ICPRemoteClientError: Error {
     case malformedResponse
     case noResponseData
     case missingRootKey
+    case invalidRootKey
 }
 
 public struct ICPReadStateResponse {
@@ -178,12 +179,13 @@ public final class ICPRequestClient: Sendable {
         guard let cborEncodedResponse = try await fetchCbor(icpRequest, canister: canister) else {
             throw ICPRemoteClientError.noResponseData
         }
-        let parsedResponse = try parseReadStateResponse(cborEncodedResponse, paths, rootKey: network.rootKey, verifySignature: network.verifyCertificates)
+        let parsedResponse = try parseReadStateResponse(cborEncodedResponse, paths, rootKey: network.rootKey)
         return parsedResponse
     }
     
-    /// Fetches and returns the root key from the network's status endpoint.
-    /// This is required for certificate validation when using a local replica.
+    /// Fetches a DER-encoded root key from the network's status endpoint and returns its raw 96-byte BLS key.
+    /// Validates the DER structure and algorithm identifiers before extracting the key.
+    /// Use the returned key with `withRootKey(_:)` to verify local replica certificates.
     public func fetchRootKey() async throws -> Data {
         let request = HttpRequest(
             method: "GET",
@@ -203,7 +205,11 @@ public final class ICPRequestClient: Sendable {
         guard let rootKey = status.root_key else {
             throw ICPRemoteClientError.missingRootKey
         }
-        return rootKey
+        do {
+            return try ICPCryptography.rawBlsPublicKey(fromDER: rootKey)
+        } catch {
+            throw ICPRemoteClientError.invalidRootKey
+        }
     }
     
     /// Will poll the canister every `waitDuration` for the response of the request with the given requestId until we
@@ -300,12 +306,11 @@ public final class ICPRequestClient: Sendable {
         return .null
     }
     
-    private func parseReadStateResponse(_ data: Data, _ paths: [ICPStateTreePath], rootKey: Data?, verifySignature: Bool) throws -> ICPReadStateResponse {
+    private func parseReadStateResponse(_ data: Data, _ paths: [ICPStateTreePath], rootKey: Data?) throws -> ICPReadStateResponse {
         let readStateResponse = try ICPCryptography.CBOR.deserialise(ReadStateResponseDecodable.self, from: data)
         let certificateCbor = try ICPCryptography.CBOR.deserialiseCbor(from: readStateResponse.certificate)
         let certificate = try ICPStateCertificate.parse(certificateCbor)
-        if verifySignature {
-            guard let rootKey else { throw ICPRemoteClientError.missingRootKey }
+        if let rootKey {
             try certificate.verifySignature(rootKey: rootKey)
         }
         let pathResponses = Dictionary(uniqueKeysWithValues: paths
