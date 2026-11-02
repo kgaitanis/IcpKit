@@ -139,9 +139,33 @@ pub fn core_sign(sig: &mut [u8], m: &[u8], s: &[u8]) -> isize {
     return BLS_OK;
 }
 
+// Reject infinity, uncompressed encodings, and noncanonical field elements.
+fn valid_compressed_encoding(bytes: &[u8], size: usize) -> bool {
+    if bytes.len() != size || bytes[0] & 0xc0 != 0x80 {
+        return false;
+    }
+    let modulus = BIG::new_ints(&rom::MODULUS);
+    for (index, component) in bytes.chunks_exact(BFS).enumerate() {
+        let mut coordinate = [0u8; BFS];
+        coordinate.copy_from_slice(component);
+        if index == 0 {
+            coordinate[0] &= 0x1f;
+        }
+        if BIG::comp(&BIG::frombytes(&coordinate), &modulus) >= 0 {
+            return false;
+        }
+    }
+    true
+}
+
 /* Verify signature given message m, the signature sig, and the public key w */
 
 pub fn core_verify(sig: &[u8], m: &[u8], w: &[u8]) -> isize {
+    // IC uses compressed G1 signatures and G2 public keys. Check the format
+    // before the point decoders, which assume their input buffers are complete.
+    if !valid_compressed_encoding(sig, BFS) || !valid_compressed_encoding(w, 2 * BFS) {
+        return BLS_FAIL;
+    }
     let hm = bls_hash_to_point(m);
 
     let mut d = ECP::frombytes(&sig);

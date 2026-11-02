@@ -4,8 +4,8 @@
 [![Platforms][platforms badge]][swift package] [![][swift versions]][swift package] 
 [![License: MIT][license]][license badge] 
 
-A comprehensive iOS package for writing mobile applications that interact with the Internet Computer Protocol (ICP), written in Swift.
-IcpKit aims at facilitating the interaction between iOS apps and the ICP blockchain.
+A Swift package for writing iOS, macOS, and Mac Catalyst applications that interact with the Internet Computer Protocol (ICP), written in Swift.
+IcpKit aims at facilitating the interaction between Apple-platform apps and the ICP blockchain.
 
 For more information about ICP Development, we recommend starting from https://internetcomputer.org/docs/current/references/
 
@@ -21,23 +21,75 @@ The BLS12381 Rust Library is licensed by Levi Feldman (see [LICENSE](Sources/bls
 
 ## Installation
 
+### Requirements
+
+- Swift 6.0 or later (Swift 6 language mode).
+- iOS 16+, macOS 13+, or Mac Catalyst 16+.
+
 ### Swift Package Manager
-Adding IcpKit as a dependency to your Xcode project is as easy as adding it to the `dependencies` value of your `Package.swift`.
+
+Add the package dependency and the products your target uses:
 
 ```swift
-...
-dependencies: [
-    .package(url: "https://github.com/kgaitanis/IcpKit.git", .upToNextMajor(from: "0.2.0"))
-]
-...
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "MyApp",
+    platforms: [.iOS(.v16), .macOS(.v13), .macCatalyst(.v16)],
+    dependencies: [
+        .package(
+            url: "https://github.com/kgaitanis/IcpKit.git",
+            revision: "147bfca44b6e6f0fe37bf833b79da93117efdcd7"
+        )
+    ],
+    targets: [
+        .target(
+            name: "MyApp",
+            dependencies: [
+                .product(name: "IcpKit", package: "IcpKit"),
+                .product(name: "Candid", package: "IcpKit"),
+                .product(name: "DAB", package: "IcpKit")
+            ]
+        )
+    ]
+)
 ```
 
-The `IcpKit` package defines two libraries `Candid` and `IcpKit`. `Candid` implements the Candid specification and `IcpKit` implements the communication with canisters. To use in your code
+This revision contains the prebuilt cryptography library. The existing `0.4.4`
+tag does not include that packaging. After a release containing it is tagged,
+replace `revision:` with `from:` and the published version. Remove any products
+your target does not use. In Xcode, use **File > Add Package Dependencies** with
+the same repository URL and revision.
+
+The package provides three libraries: `Candid` for Candid encoding and parsing,
+`IcpKit` for canister communication, and `DAB` for token and NFT integrations.
+It also provides the `CodeGenerator` executable.
 
 ```swift
-import Candid  // not needed when using the CodeGenerator
+import Candid  // For direct Candid API use
 import IcpKit
+import DAB     // For token and NFT integrations
 ```
+
+### Prebuilt cryptography library
+
+IcpKit includes `Binaries/Bls12381.xcframework`. Swift Package Manager links this
+prebuilt Rust library automatically; users do not need Rust or Cargo installed.
+It supports iOS 16+ devices (ARM64), iOS simulators (ARM64 and x86_64), macOS 13+
+(ARM64 and x86_64), and Mac Catalyst 16+ (ARM64 and x86_64).
+
+Maintainers regenerating the binary need Xcode and Rust installed, with these targets:
+
+```sh
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
+    aarch64-apple-darwin x86_64-apple-darwin \
+    aarch64-apple-ios-macabi x86_64-apple-ios-macabi
+bash compile_rust_ios.sh
+```
+
+Commit the complete regenerated XCFramework alongside source changes before tagging
+a release. The script is a maintainer tool and is never run during package installation.
 
 ## What does it do?
 
@@ -53,10 +105,11 @@ IcpKit will take care of all the encoding, serialisation and cryptography requir
 - Basic ICP Models for transactions, accounts, self-authenticating principals etc.
 - Ledger and Archive Canister implementation as sample code.
 
-`IcpKit` package is split in 3 products : 
+The `IcpKit` package provides four products:
 
 - [`Candid` Library](#candid-library-overview)
 - [`IcpKit` Library](#icpkit-library-overview)
+- `DAB` Library for token and NFT integrations
 - [`CodeGenerator` command line executable](#codegenerator-command-line-tool-overview)
 
 ### Candid Library Overview
@@ -84,9 +137,9 @@ The main classes of the `IcpKit` Library are the following :
 | Class                                                        | Description                                                  |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | [`ICPRequestClient`](Sources/IcpKit/ICPRequest/ICPRequestClient.swift) | Responsible for making the `HTTP` requests to the methods of canisters. It receives the arguments of the method as a `CandidValue` and will return the result of the canister as a `CandidValue`. Internally, it will serialise the candid arguments using the `CandidSerialiser`,  sign the request when a `ICPSigningPrincipal` is provided and finally wrap everything in `CBOR`. When a response is received the opposite process is performed to return the `CandidValue`. |
-| [`ICPFunction<T,R>`](Sources/ICPKit/ICPRequest/ICPFunction.swift) | Wraps the `CandidEncoder` around the `ICPRequestClient` so that a canister method can be called using `Swift` objects instead of a `CandidValue`. Similarly the canister's response is decoded with `CandidDecoder` to return a `Swift` object. |
+| [`ICPFunction<T,R>`](Sources/IcpKit/ICPRequest/ICPFunction.swift) | Wraps the `CandidEncoder` around the `ICPRequestClient` so that a canister method can be called using `Swift` objects instead of a `CandidValue`. Similarly the canister's response is decoded with `CandidDecoder` to return a `Swift` object. |
 | [`LedgerCanister`](Sources/IcpKit/Canisters/ICPLedgerCanister.swift) | Is provided as sample code and is the code generated using `CodeGenerator` from the `Ledger.did` file. It allows to query the ICP balance of any ICP account and to fetch the details of any ICP Block. |
-| [`ICPSigningPrincipal`](Sources/ICPKit/Models/ICPSigningPrincipal.swift) | Protocol that must be implemented by your application in order to sign requests. The library provides the function to sign arbitrary data with a private key [ICPCryptography.ellipticSign()](Sources/ICPKit/Cryptography/ICPSignature.swift) but it is the responsibility of your app to handle the private keys. Implementing a concrete `ICPSigningPrincipal` requires you to get the private key required and then call `ellipticSign` and return the result.<br />See [How can I create a Principal](#how-can-i-create-a-principal) |
+| [`ICPSigningPrincipal`](Sources/IcpKit/Models/ICPSigningPrincipal.swift) | Protocol that must be implemented by your application in order to sign requests. The library provides the function to sign arbitrary data with a private key [ICPCryptography.ellipticSign()](Sources/IcpKit/Cryptography/ICPSignature.swift) but it is the responsibility of your app to handle the private keys. Implementing a concrete `ICPSigningPrincipal` requires you to get the private key required and then call `ellipticSign` and return the result.<br />See [How can I create a Principal](#how-can-i-create-a-principal) |
 
 The [ICPRequestClient](Sources/IcpKit/ICPRequest/ICPRequestClient.swift) class is the communication workhorse of the library allowing to make method calls to any canister.
 
@@ -97,7 +150,7 @@ The [Ledger Canister](Sources/IcpKit/Canisters/ICPLedgerCanister.swift) is provi
 To use the `CodeGenerator`, you must first clone the project 
 
 ```shell
-git clone https://github.com/kosta-bity/IcpKit
+git clone https://github.com/kgaitanis/IcpKit
 cd IcpKit
 ```
 
@@ -111,14 +164,14 @@ From the `IcpKit` root folder :
 ./compile_code_generator.sh
 ```
 
-You will find the executable inside the folder `.build/release/CodeGenerator`. Running the `CodeGenerator` without any arguments will display the help.
+You will find the executable inside the folder `.build/release/CodeGenerator`. Run `.build/release/CodeGenerator --help` to display the help.
 
 #### Use Swift to execute
 
 Alternatively you can use swift to run it from the `IcpKit` root folder :
 
 ```shell
-swift run CodeGenerator
+swift run CodeGenerator --help
 ```
 
 ## Candid Interface Definition files (`.did`)
@@ -136,7 +189,7 @@ The `.did` files can be one of two types  :
 
 Assuming that you have a `.did` service interface definition file, the steps to interact with a canister are the following :
 
-- Generate Swift code for the `.did` file using the `CodeGeneratorTool`.
+- Generate Swift code for the `.did` file using the `CodeGenerator`.
 - Add the generated Swift files in your project.
 - Modify the generated Swift files as necessary. The kind of modifications that are allowed are :
   - Renaming of types and methods. 
@@ -160,10 +213,10 @@ service: {
 Using the command
 
 ```shell
-CodeGenerator -n SimpleExample MyDid.did
+swift run CodeGenerator -n SimpleExample MyDid.did
 ```
 
-we get the `SimpleExample.swift` file generated with these contents:
+we get `MyDid.did.swift`. Its core declarations are shown below (generated comments omitted):
 
 ```swift
 import IcpKit
@@ -177,8 +230,8 @@ enum SimpleExample {
 	}  
   
 	class Service: ICPService {
-		func foo(input: MyVector, sorted: Bool) async throws -> FooResult {
-			let caller = ICPQuery<CandidTuple2<MyVector, Bool>, FooResult>(canister, "foo")
+		func foo(input: MyVector, sorted: Bool, sender: ICPSigningPrincipal? = nil) async throws -> FooResult {
+			let caller = ICPQuery<ICPFunctionArgs2<MyVector, Bool>, FooResult>(canister, "foo")
 			let response = try await caller.callMethod(.init(input, sorted), client, sender: sender)
 			return response
 		}
@@ -186,11 +239,13 @@ enum SimpleExample {
 }
 ```
 
+Replace `aaaaa-aa` below with the principal of a canister implementing this interface.
+
 We can then add this file to our project and use it anywhere in our code as follows:
 
 ```swift
 let client = ICPRequestClient()
-let myService = SimpleExample.Service("aaaaa-aa", client)
+let myService = try SimpleExample.Service("aaaaa-aa", client: client)
 let myVector: SimpleExample.MyVector = [true, false, nil]
 let record = try await myService.foo(input: myVector, sorted: false)
 print(record.name)
@@ -215,24 +270,12 @@ An example of a value `.did` file is the following `phone_book.did`:
 These types of files can be parsed using the following command :
 
 ```shell
-./CodeGenerator value -n PhoneBook phone_book.did
+swift run CodeGenerator value -n phoneBook phone_book.did
 ```
 
-This will generate `PhoneBook.swift` with the following contents :
-
-```swift
-enum PhoneBook {
-   struct UnnamedType0: Codable {
-      let name: String
-      let phone: BigUInt
-   }
-   
-   let cValue: [UnnamedType0] = [
-   		.init(name: "MyName", phone: 1234),
-      .init(name: "AnotherName", phone: 4321),
-   ]
-}
-```
+This generates `phone_book.did.swift` containing the record type and a
+top-level `phoneBook` constant. The `-n` option names the Swift value; the output
+filename is the input filename with `.swift` appended.
 
 #### Parsing `.did` files during runtime
 
@@ -240,7 +283,7 @@ Your app might require to download a `.did` file, parse it and extract some valu
 
 ```swift
 let phoneBookDidContents: String = try await downloadDid() // download phone_book.did file and read it 
-let phoneBookCandidValue: CandidValue = try CandidParser().parseValue(phoneBookContents)
+let phoneBookCandidValue: CandidValue = try CandidParser().parseValue(phoneBookDidContents)
 ```
 
 We can go one step further and decode the parsed `CandidValue` into a `Swift struct` :
@@ -306,7 +349,7 @@ However, due to the way the Swift Decoding System works, we can not do the same 
   We use `CandidCodingKey` to perform the hashing :
 
   ```swift
-  enum NamedVariant {
+  enum NamedVariant: Codable {
     case one(Int8)
     case two(Int16)
     case three(a: Int8, b: Int16)
@@ -320,16 +363,16 @@ However, due to the way the Swift Decoding System works, we can not do the same 
   }
   ```
 
-- If we are deocding from a variant with unnamed values :
+- If we are decoding from a variant with unnamed values :
 
   ```candid
   type UnnamedVariant = variant { int8; int16; record { int8, int16} };
   ```
 
-  We use `Int, CodingKey` to assing integer values to the keys :
+  We use `Int, CodingKey` to assign integer values to the keys :
 
   ```swift
-  enum UnnamedVariant {
+  enum UnnamedVariant: Codable {
     case anyName(Int8)
     case really(Int16)
     case weCanChoose(here: Int8, too: Int16)
@@ -376,7 +419,7 @@ let response = try await client.pollRequestStatus(requestId: requestId, effectiv
 ```
 equivalently we can also do 
 ```swift
-let response = try await client.callAndPoll(requestId: requestId, effectiveCanister: ICPSystemCanisters.ledger)
+let response = try await client.callAndPoll(method, effectiveCanister: ICPSystemCanisters.ledger)
 ```
 or even
 ```swift
@@ -384,9 +427,9 @@ let response = try await client.query(.certified, method, effectiveCanister: ICP
 ```
 All these have the exact same result.
 
-### Hot to use `ICPFunction`
+### How to use `ICPFunction`
 
-The same can be achieved with the following code, only this time by using the `ICPFunction`. This allows us to directly feed an `Encodable` to the function and receive back a `Decodable`. `ICPFunction` will make sure the input is correctly encoded from the input Swift type to a `CandidValue` and the output is decoded from the `CandidValue` to the output Swift type.
+Use `ICPQuery<Argument, Result>` for query methods or `ICPCall<Argument, Result>` for update methods. These aliases supply the third, query-mode parameter of `ICPFunction<Argument, Result, Query>`. This allows us to directly feed an `Encodable` to the function and receive back a `Decodable`. `ICPFunction` will make sure the input is correctly encoded from the input Swift type to a `CandidValue` and the output is decoded from the `CandidValue` to the output Swift type.
 
 ```swift
 struct Result: Decodable {
@@ -394,9 +437,9 @@ struct Result: Decodable {
 	let count: Int?
 }
 // equivalent Candid definition:
-// function (nat) -> ( record { name: text; count: opt int64; } )
-let function = ICPFunction<BigUInt, Result>(canister, "foo")
-let result = try await function.callMethod(12345)
+// function (nat) -> ( record { name: text; count: opt int64; } ) query
+let function = ICPQuery<BigUInt, Result>(canister, "foo")
+let result = try await function.callMethod(12345, client)
 ```
 
 ### How can I create a Principal?
@@ -413,12 +456,14 @@ The public key must be in uncompressed form.
 
 #### Implementing a simple `ICPSigningPrincipal`
 
-Here is a minimal `ICPSigningPrincipal`implementation. This is given as an example only. Do not use this code in production as keeping private keys in memory is generally not a good practice.
+Pass an uncompressed public key and its matching private key to the initializer.
+
+Here is a minimal `ICPSigningPrincipal` implementation. This is given as an example only. Do not use this code in production as keeping private keys in memory is generally not a good practice.
 
 The `sign` method is purposely `async` to allow for any type of delayed fetching of the private keys (eg. remote access or access to iOS Secure Enclave).
 
 ```swift
-class SimpleSigningPrincipal: ICPSigningPrincipal {
+final class SimpleSigningPrincipal: ICPSigningPrincipal {
   private let privateKey: Data
   let rawPublicKey: Data
   let principal: ICPPrincipal
@@ -432,19 +477,6 @@ class SimpleSigningPrincipal: ICPSigningPrincipal {
   func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data {
     return try ICPCryptography.ellipticSign(message, domain: domain, with: privateKey)
   }
-  
-  static func fromMnemonic(_ words: [String]) throws -> SimplePrincipal {
-    let seed = HdWalletKit.Mnemonic.seed(mnemonic: words)!
-    let xPrivKey = HDExtendedKeyVersion.xprv.rawValue
-    let privateKey = try HDPrivateKey(seed: seed, xPrivKey: xPrivKey)
-      .derived(at: 44, hardened: true)
-      .derived(at: 223, hardened: true)
-      .derived(at: 0, hardened: true)
-      .derived(at: 0, hardened: false)
-      .derived(at: 0, hardened: false)
-    let publicKey = privateKey.publicKey(compressed: false)
-    return try SimplePrincipal(privateKey: privateKey.raw, uncompressedPublicKey: publicKey.raw)
-  }
 }
 ```
 
@@ -456,12 +488,12 @@ class SimpleSigningPrincipal: ICPSigningPrincipal {
 - Encoding of optional `Structs` can not infer the members of the struct. These are encoded as `opt empty` which should be accepted by all canisters according to Candid specifications.
 
 
-[build status]: https://github.com/kosta-bity/IcpKit/actions
-[build status badge]: https://github.com/kosta-bity/IcpKit/actions/workflows/IcpKit-Tests.yml/badge.svg
-[swift package]: https://swiftpackageindex.com/kosta-bity/IcpKit
-[platforms badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkosta-bity%2FIcpKit%2Fbadge%3Ftype%3Dplatforms
-[codecov badge]: https://codecov.io/gh/kosta-bity/IcpKit/graph/badge.svg?token=QL11UD2IXD
-[codecov]: https://codecov.io/gh/kosta-bity/IcpKit
+[build status]: https://github.com/kgaitanis/IcpKit/actions
+[build status badge]: https://github.com/kgaitanis/IcpKit/actions/workflows/IcpKit-Tests.yml/badge.svg
+[swift package]: https://swiftpackageindex.com/kgaitanis/IcpKit
+[platforms badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkgaitanis%2FIcpKit%2Fbadge%3Ftype%3Dplatforms
+[codecov badge]: https://codecov.io/gh/kgaitanis/IcpKit/graph/badge.svg?token=QL11UD2IXD
+[codecov]: https://codecov.io/gh/kgaitanis/IcpKit
 [license]: https://img.shields.io/badge/License-MIT-yellow.svg
 [license badge]: https://opensource.org/licenses/MIT
-[swift versions]: https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkosta-bity%2FIcpKit%2Fbadge%3Ftype%3Dswift-versions
+[swift versions]: https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fkgaitanis%2FIcpKit%2Fbadge%3Ftype%3Dswift-versions

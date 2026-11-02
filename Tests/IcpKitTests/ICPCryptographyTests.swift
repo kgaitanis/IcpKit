@@ -118,37 +118,95 @@ final class ICPCryptographyTests: XCTestCase {
         ]).base64EncodedString(), "CxCF+O8wyQLiW2Dy18SkenGre+PaEtsrMptNi1fql/o=")
     }
     
-    func testBlsSignatureVerification() throws {
-        throw XCTSkip("This test is temporarily disabled")
-        let publicKey = ICPStateCertificate.icpRootRawPublicKey
-        XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
-            message: Data.fromHex("0d69632d73746174652d726f6f74d37ba673431b273a9db85cc2dcf236496decd32c2ba7d160b19f74c1a3e336a3")!,
-            publicKey: publicKey,
-            signature: Data.fromHex("b5a4e1b143d6f7c311b1f651f370177a7c5a3c2e7d9d337a28d72815000e34b35ca1dfbe6ca953aa0962116da29a8ee1")!))
+    func testBlsSignatureVerificationSucceeds() throws {
+        let icpRootPublicKey = "814c0e6ec71fab583b08bd81373c255c3c371b2e84863c98a4f1e08b74235d14fb5d9c0cd546d9685f913a0c0b2cc5341583bf4b4392e467db96d65b9bb4cb717112f8472e0d5a4d14505ffd7484b01291091c5f87b98883463f98091a0baaae"
+        let helloPublicKey = "a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5"
+        let cases: [(String, String, String)] = [
+            ("0d69632d73746174652d726f6f74d37ba673431b273a9db85cc2dcf236496decd32c2ba7d160b19f74c1a3e336a3", icpRootPublicKey, "b5a4e1b143d6f7c311b1f651f370177a7c5a3c2e7d9d337a28d72815000e34b35ca1dfbe6ca953aa0962116da29a8ee1"),
+            ("0d69632d73746174652d726f6f7424c20a5ca11f8f672b907cba5d0eb29945307b622da2d21aa01f6d202b8b8de3", icpRootPublicKey, "83cad0cad53d26b4b8e3445db4a6503f5304215686678c852977e161cbd0ccdc7bdfb207c496d09b01b01f4174a72cdc"),
+            ("0d69632d73746174652d726f6f7456912744b5e7dd38529eb78faecf748ba0ef4ec3e0af35092f84298e87d6e1c2", icpRootPublicKey, "b931848dc01a3640f6610e82581b6b200ed00ae31ae3503c8dd363238c010960bc90afb295ff02dd1639aecf1efc8d4e"),
+            ("68656c6c6f", helloPublicKey, "b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe"),
+        ]
+
+        for (messageHex, publicKeyHex, signatureHex) in cases {
+            XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
+                message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!))
+        }
         
-        XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
-            message: Data.fromHex("0d69632d73746174652d726f6f7424c20a5ca11f8f672b907cba5d0eb29945307b622da2d21aa01f6d202b8b8de3")!,
-            publicKey: publicKey,
-            signature: Data.fromHex("83cad0cad53d26b4b8e3445db4a6503f5304215686678c852977e161cbd0ccdc7bdfb207c496d09b01b01f4174a72cdc")!))
+    }
+
+    func testBlsSignatureVerificationFails() throws {
+        let helloPublicKey = "a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5"
+        let helloSignature = "b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe"
+        let icpRootPublicKey = "814c0e6ec71fab583b08bd81373c255c3c371b2e84863c98a4f1e08b74235d14fb5d9c0cd546d9685f913a0c0b2cc5341583bf4b4392e467db96d65b9bb4cb717112f8472e0d5a4d14505ffd7484b01291091c5f87b98883463f98091a0baaae"
+        let icpRootSignature = "b5a4e1b143d6f7c311b1f651f370177a7c5a3c2e7d9d337a28d72815000e34b35ca1dfbe6ca953aa0962116da29a8ee1"
+        let cases: [(String, String, String)] = [
+            ("68616c6c6f", helloPublicKey, helloSignature),
+            ("0d69632d73746174652d726f6f74d37ba673431b273a9db85cc2dcf236496decd32c2ba7d160b19f74c1a3e336a4", icpRootPublicKey, icpRootSignature),
+        ]
+
+        for (messageHex, publicKeyHex, signatureHex) in cases {
+            XCTAssertThrowsError(try ICPCryptography.verifyBlsSignature(
+                message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!)) { error in
+                XCTAssertEqual(error as? ICPStateCertificateError, .invalidSignature)
+            }
+        }
+    }
+    
+    func testBlsSignatureVerificationRejectsMalformedInputs() throws {
+        let message = "hello".data
+        let publicKey = Data.fromHex("a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5")!
+        let signature = Data.fromHex("b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe")!
         
-        XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
-            message: Data.fromHex("0d69632d73746174652d726f6f7456912744b5e7dd38529eb78faecf748ba0ef4ec3e0af35092f84298e87d6e1c2")!,
-            publicKey: publicKey,
-            signature: Data.fromHex("b931848dc01a3640f6610e82581b6b200ed00ae31ae3503c8dd363238c010960bc90afb295ff02dd1639aecf1efc8d4e")!))
+        func XCTAssertInvalidBlsSignature(
+            publicKey: Data = publicKey,
+            signature: Data = signature,
+            file: StaticString = #filePath,
+            line: UInt = #line
+        ) {
+            XCTAssertThrowsError(
+                try ICPCryptography.verifyBlsSignature(
+                    message: message,
+                    publicKey: publicKey,
+                    signature: signature
+                ),
+                file: file,
+                line: line
+            ) { error in
+                XCTAssertEqual(error as? ICPStateCertificateError, .invalidSignature, file: file, line: line)
+            }
+        }
         
-        XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
-            message: "hello".data,
-            publicKey: Data.fromHex("a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5")!,
-            signature: Data.fromHex("b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe")!))
+        XCTAssertInvalidBlsSignature(signature: Data())
+        XCTAssertInvalidBlsSignature(publicKey: Data())
+        XCTAssertInvalidBlsSignature(signature: Data(repeating: 0xff, count: signature.count))
+        XCTAssertInvalidBlsSignature(publicKey: Data(repeating: 0xff, count: publicKey.count))
+        var uncompressedSignature = signature
+        uncompressedSignature[0] &= 0x7f
+        XCTAssertInvalidBlsSignature(signature: uncompressedSignature)
+        var uncompressedPublicKey = publicKey
+        uncompressedPublicKey[0] &= 0x7f
+        XCTAssertInvalidBlsSignature(publicKey: uncompressedPublicKey)
+
+        XCTAssertInvalidBlsSignature(signature: signature.dropLast())
+        XCTAssertInvalidBlsSignature(signature: signature + Data([0x00]))
+        XCTAssertInvalidBlsSignature(publicKey: publicKey.dropLast())
+        XCTAssertInvalidBlsSignature(publicKey: publicKey + Data([0x00]))
         
-        XCTAssertThrowsError(try ICPCryptography.verifyBlsSignature(
-            message: "hallo".data,
-            publicKey: Data.fromHex("a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5")!,
-            signature: Data.fromHex("b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe")!))
+        var identitySignature = Data(repeating: 0x00, count: signature.count)
+        identitySignature[0] = 0xc0
+        XCTAssertInvalidBlsSignature(signature: identitySignature)
         
-        XCTAssertThrowsError(try ICPCryptography.verifyBlsSignature(
-            message: Data.fromHex("0d69632d73746174652d726f6f74d37ba673431b273a9db85cc2dcf236496decd32c2ba7d160b19f74c1a3e336a4")!, // same as first test, changed last byte from 3 to 4
-            publicKey: publicKey,
-            signature: Data.fromHex("b5a4e1b143d6f7c311b1f651f370177a7c5a3c2e7d9d337a28d72815000e34b35ca1dfbe6ca953aa0962116da29a8ee1")!))
+        var identityPublicKey = Data(repeating: 0x00, count: publicKey.count)
+        identityPublicKey[0] = 0xc0
+        XCTAssertInvalidBlsSignature(publicKey: identityPublicKey)
+        
+        var alteredPublicKey = publicKey
+        alteredPublicKey[alteredPublicKey.count - 1] ^= 0x01
+        XCTAssertInvalidBlsSignature(publicKey: alteredPublicKey)
+        
+        var alteredSignature = signature
+        alteredSignature[alteredSignature.count - 1] ^= 0x01
+        XCTAssertInvalidBlsSignature(signature: alteredSignature)
     }
 }

@@ -35,12 +35,8 @@ let package = Package(
                 "Candid",
                 "BigInt",
                 .product(name: "secp256k1", package: "secp256k1.swift"),
-//                .target(name: "bls12381"),
+                .target(name: "bls12381"),
             ]
-//            cSettings: [.headerSearchPath("Sources/bls12381/include"),
-//                        .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])],
-//            cxxSettings: [.headerSearchPath("Sources/bls12381/include"),
-//                          .unsafeFlags(["-ISources/bls12381/include/Bls12381.h"])]
         ),
         .target(
             name: "Candid",
@@ -62,10 +58,10 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
-//        .binaryTarget(
-//            name: "bls12381",
-//            path: "Binaries/Bls12381.xcframework"
-//        ),
+        .binaryTarget(
+            name: "bls12381",
+            path: "Binaries/Bls12381.xcframework"
+        ),
         .testTarget(
             name: "IcpKitTests",
             dependencies: ["IcpKit",]
