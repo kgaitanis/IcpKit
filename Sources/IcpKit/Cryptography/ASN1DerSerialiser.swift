@@ -117,6 +117,11 @@ extension ICPCryptography {
 
     /// Decodes and validates a supported DER SubjectPublicKeyInfo public key.
     /// Use ICPPublicKey(derRepresentation:) when the algorithm is also needed.
+    ///
+    /// - Parameter derEncodedPublicKey: Canonical DER SubjectPublicKeyInfo containing
+    ///   a secp256k1, P-256, or Ed25519 key.
+    /// - Returns: Uncompressed 65-byte EC key bytes or 32 raw Ed25519 key bytes.
+    /// - Throws: `ICPPublicKey.Error` if the DER, algorithm, or public key is invalid.
     public static func decode(derEncodedPublicKey: Data) throws -> Data {
         try ASN1DerSerialiser.decode(derEncodedPublicKey).rawRepresentation
     }

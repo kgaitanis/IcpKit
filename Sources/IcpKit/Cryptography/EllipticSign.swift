@@ -127,6 +127,16 @@ private final class EllipticCurveEncrypterSecp256k1 {
 
 public extension ICPCryptography {
     /// Verifies an ICP compact (64-byte r || s) signature over SHA-256(message).
+    ///
+    /// Both low-S and high-S ECDSA signatures are accepted.
+    /// - Parameters:
+    ///   - signature: A 64-byte compact `r || s` signature without a recovery identifier.
+    ///   - message: The bytes to hash with SHA-256 before verification. Include any
+    ///     required domain separator; this method does not prepend one.
+    ///   - publicKeyUncompressed: An uncompressed 65-byte secp256k1 public key.
+    /// - Returns: Whether the signature authenticates the message.
+    /// - Throws: `ICPPublicKey.Error.invalidPublicKey` or
+    ///   `ICPPublicKey.Error.invalidSignature` if either input cannot be parsed.
     static func verifySecp256k1(signature: Data, message: Data, publicKeyUncompressed: Data) throws -> Bool {
         var publicKey = try parseSecp256k1PublicKey(publicKeyUncompressed)
         var signature = try parseSecp256k1Signature(signature)

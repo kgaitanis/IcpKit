@@ -40,6 +40,20 @@ public enum ICPRequestBuilder {
         }
     }
     
+    /// Builds an anonymous or signed request envelope, enforcing delegation restrictions.
+    ///
+    /// Delegations are checked for chain length, expiration before and after signing,
+    /// and allowed targets. Chain signatures are validated by `ICPDelegatedIdentity`;
+    /// custom signers are responsible for supplying a valid chain.
+    ///
+    /// - Parameters:
+    ///   - content: The request content whose request ID will be signed.
+    ///   - sender: The signing identity, or `nil` for an anonymous envelope.
+    ///   - canister: The effective canister for a read-state request. Required when
+    ///     delegations restrict targets. Call and query requests use the canister in their content.
+    /// - Returns: An envelope containing the content and any authentication fields.
+    /// - Throws: A delegation restriction error, or an error encoding the key,
+    ///   calculating the request ID, or signing.
     public static func buildEnvelope(_ content: ICPRequestContent, sender: ICPSigningPrincipal?, canister: ICPPrincipal? = nil) async throws -> ICPRequestEnvelope {
         guard let sender = sender else {
             return ICPRequestEnvelope(content: content)
