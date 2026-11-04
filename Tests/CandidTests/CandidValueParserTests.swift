@@ -5,37 +5,39 @@
 //  Created by Konstantinos Gaitanis on 12.07.24.
 //
 
-import XCTest
-import Candid
+import Foundation
+import Testing
+@testable import Candid
 
-final class CandidValueParserTests: XCTestCase {
+struct CandidValueParserTests {
     private let parser = CandidParser()
-    
-    func testParsePrimValue() throws {
-        for (string, expected) in CandidValueParserTestVectors.singleValueTests {
-            guard let parsed = try? parser.parseValue(string) else {
-                XCTFail("Could not parse \(string)")
-                continue
-            }
-            XCTAssertEqual(parsed, expected, "\(parsed.description) is not equal to \(string)")
-        }
+
+    @Test func emptyInputThrows() {
+        #expect(throws: (any Error).self) { try ByteInputStream(Data()).readNextByte() }
+    }
+
+    @Test(arguments: CandidValueParserTestVectors.singleValueTests.indices)
+    func `Parse prim value`(_ index: Int) throws {
+        let (string, expected) = CandidValueParserTestVectors.singleValueTests[index]
+        let parsed = try parser.parseValue(string)
+        #expect(parsed == expected, "\(parsed.description) is not equal to \(string)")
     }
     
-    func testFailingPrimValues() {
-        for (string, reason) in CandidValueParserTestVectors.failingSingleValues {
-            XCTAssertThrowsError(try parser.parseValue(string), "'\(string)' should fail because '\(reason)' but instead parsed \(try! parser.parseValue(string).description)")
-        }
+    @Test(arguments: CandidValueParserTestVectors.failingSingleValues.indices)
+    func `Failing prim values`(_ index: Int) {
+        let (string, reason) = CandidValueParserTestVectors.failingSingleValues[index]
+        #expect(throws: (any Error).self, "'\(string)' should fail because '\(reason)'") { try parser.parseValue(string) }
     }
     
-    func testRealWorld() throws {
+    @Test func `Real world`() throws {
         let realWorld = CandidValueParserTestVectors.realWorldEvm
         let parsed = try parser.parseValue(realWorld)
         guard case .vector(let vector) = parsed else {
-            XCTFail("not a vector")
+            Issue.record("not a vector")
             return
         }
-        let first = vector.values.first!
-        XCTAssertEqual(first, .record([
+        let first = try #require(vector.values.first)
+        #expect(first == .record([
             "cyclesPerCall": .natural64(0),
             "owner": try .principal("rxqtr-vwnhc-q4tjx-lozjs-u7nxo-2tqsn-cusmy-ip2ke-zy52n-x2ukd-gae"),
             "hostname": .text("cloudflare-eth.com"),
@@ -45,8 +47,8 @@ final class CandidValueParserTests: XCTestCase {
             "providerId": .natural64(0),
         ]))
         
-        let last = vector.values.last!
-        XCTAssertEqual(last, .record([
+        let last = try #require(vector.values.last)
+        #expect(last == .record([
             "cyclesPerCall": .natural64(0),
             "owner": try .principal("rxqtr-vwnhc-q4tjx-lozjs-u7nxo-2tqsn-cusmy-ip2ke-zy52n-x2ukd-gae"),
             "hostname": .text("optimism-rpc.publicnode.com\n"),
@@ -55,5 +57,18 @@ final class CandidValueParserTests: XCTestCase {
             "cyclesPerMessageByte": .natural64(0),
             "providerId": .natural64(21),
         ]))
+    }
+}
+
+struct CandidValueParserValidationTests {
+    @Test(arguments: [
+        "65536 : nat16", "4294967296 : nat32", "18446744073709551616 : nat64",
+        "32768 : int16", "-32769 : int16", "2147483648 : int32",
+        "-2147483649 : int32", "9223372036854775808 : int64", "-9223372036854775809 : int64",
+        "true : nat16", "true : nat32", "true : nat64", "true : int16",
+        "true : int32", "true : int64", "true : float32", "true : float64", "true : text"
+    ])
+    func valueAnnotationsRejectOverflowAndWrongTypes(_ input: String) {
+        #expect(throws: CandidParserError.self) { try CandidParser().parseValue(input) }
     }
 }

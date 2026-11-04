@@ -1,20 +1,35 @@
 //
-//  CandidSuperTypeTests.swift
+//  CandidSubTypeTests.swift
 //  
 //
 //  Created by Konstantinos Gaitanis on 24.07.24.
 //
 
-import XCTest
+import Testing
 import Candid
 
-final class CandidSuperTypeTests: XCTestCase {
-    func testSubTypes() {
-        for (subType, superType, result) in TestCases.subTypes {
-            XCTAssertEqual(subType.isSubType(of: superType), result, "\(superType) isSubTypeOf \(subType) failed to return \(result)")
-            XCTAssertEqual(superType.isSuperType(of: subType), result, "\(subType) isSuperTypeOf \(superType) failed to return \(result)")
-        }
+struct CandidSubTypeTests {
+    @Test(arguments: TestCases.subTypes) func `Sub types`(input: (subType: CandidType, superType: CandidType, result: Bool)) {
+        #expect(input.subType.isSubType(of: input.superType) == input.result, "\(input.superType) isSubTypeOf \(input.subType) failed to return \(input.result)")
     }
+
+    @Test func compositeSubtypingChecksContainedTypes() {
+        #expect(CandidType.option(.natural).isSubType(of: .option(.integer)))
+        #expect(!CandidType.option(.integer).isSubType(of: .option(.natural)))
+        #expect(CandidType.vector(.natural).isSubType(of: .vector(.integer)))
+        #expect(!CandidType.vector(.integer).isSubType(of: .vector(.natural)))
+        let types: [CandidType] = [
+            .option(.bool), .vector(.bool), .record(["a": .bool]),
+            .variant("a"), .function(), .service(), .named("Missing")
+        ]
+        for type in types {
+            #expect(!type.isSubType(of: .bool))
+        }
+        let unresolved = CandidType.service([.init(name: "f", signatureType: .reference("Missing"))])
+        let concrete = CandidType.service(["f": .init([CandidType.bool], [])])
+        #expect(!unresolved.isSubType(of: concrete))
+    }
+
 }
 
 private enum TestCases {
