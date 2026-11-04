@@ -219,7 +219,7 @@ private struct NullElement: Decodable {
 private struct FunctionReference: CandidFunctionProtocol {
     let canister: CandidPrincipal
     let methodName: String
-    let isQuery = true
+    var isQuery = true
 
     init(_ canister: CandidPrincipal, _ method: String) {
         self.canister = canister

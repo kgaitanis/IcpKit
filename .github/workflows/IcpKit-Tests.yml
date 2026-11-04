@@ -35,6 +35,7 @@ jobs:
             uses: codecov/codecov-action@v7
             with:
               token: ${{ secrets.CODECOV_TOKEN }}
+              flags: macos
 
     ios-tests:
         runs-on: macos-26
@@ -63,3 +64,4 @@ jobs:
             uses: codecov/codecov-action@v7
             with:
               token: ${{ secrets.CODECOV_TOKEN }}
+              flags: ios

@@ -378,7 +378,7 @@ private struct PassThroughCandidValue: Codable {
 private struct TestFunction: CandidFunctionProtocol {
     let canister: Candid.CandidPrincipal
     let methodName: String
-    let isQuery: Bool = true
+    var isQuery: Bool = true
     
     init(_ canister: CandidPrincipal, _ method: String) {
         self.canister = canister
