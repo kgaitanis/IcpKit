@@ -9,6 +9,34 @@ on:
     branches: [ "main" ]
 
 jobs:
+    macos-tests:
+        runs-on: macos-26
+
+        steps:
+          - uses: actions/checkout@v7
+
+          - name: Select Xcode
+            run: sudo xcode-select --switch /Applications/Xcode_26.6.app
+
+          - name: Show environment
+            run: |
+              xcodebuild -version
+              swift --version
+
+          - name: Run tests
+            run: |
+              xcodebuild test \
+                -scheme IcpKit-Package \
+                -destination 'platform=macOS' \
+                -enableCodeCoverage YES \
+                -parallel-testing-enabled YES
+
+          - name: Upload coverage
+            uses: codecov/codecov-action@v7
+            with:
+              token: ${{ secrets.CODECOV_TOKEN }}
+              flags: macos
+
     ios-tests:
         runs-on: macos-26
 
@@ -36,3 +64,4 @@ jobs:
             uses: codecov/codecov-action@v7
             with:
               token: ${{ secrets.CODECOV_TOKEN }}
+              flags: ios

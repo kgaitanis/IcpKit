@@ -6,8 +6,9 @@
 //
 
 import XCTest
+import Testing
 import Candid
-import CodeGenerator
+@testable import CodeGenerator
 
 final class CodeGeneratorTests: XCTestCase {
     func testTypeDidFiles() async throws {
@@ -155,5 +156,119 @@ private class BundleDidProvider: CandidInterfaceDefinitionProvider {
         let path = Bundle.module.url(forResource: name, withExtension: nil)!
         let didFile = try String(contentsOf: path)
         return didFile
+    }
+}
+
+struct CodeGeneratorEdgeCaseTests {
+    @Test func commandsWriteGeneratedTypeAndValueFiles() async throws {
+        // Use a unique relative directory because the commands resolve paths against cwd.
+        let directoryName = "CodeGeneratorTests-" + UUID().uuidString
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent(directoryName)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let typeInput = "type Flag = bool;"
+        let valueInput = "true"
+        try typeInput.write(to: directory.appendingPathComponent("types.did"), atomically: true, encoding: .utf8)
+        try valueInput.write(to: directory.appendingPathComponent("value.did"), atomically: true, encoding: .utf8)
+
+        var typeCommand = try CodeGenerator.GenerateType.parse(["--name", "Example", directoryName + "/types.did"])
+        try await typeCommand.run()
+        var valueCommand = try CodeGenerator.GenerateValue.parse(["--name", "flag", directoryName + "/value.did"])
+        try valueCommand.run()
+
+        let typeOutput = try String(contentsOf: directory.appendingPathComponent("types.did.swift"), encoding: .utf8)
+        let valueOutput = try String(contentsOf: directory.appendingPathComponent("value.did.swift"), encoding: .utf8)
+        let interface = try await CandidParser().parseInterfaceDescription(typeInput)
+        #expect(typeOutput == (try CandidCodeGenerator().generateSwiftCode(for: interface, nameSpace: "Example")))
+        #expect(valueOutput == (try CandidCodeGenerator().generateSwiftCode(for: .bool(true), valueName: "flag")))
+    }
+
+    @Test func mixedRecordLabelsGenerateInitializerAndCodingKeys() throws {
+        let interface = CandidInterfaceDefinition(namedTypes: [
+            "Mixed": .record([.init(7, .bool), .init("label", .text)])
+        ])
+        let code = try CandidCodeGenerator(.init(generateHeader: false))
+            .generateSwiftCode(for: interface, nameSpace: "Example")
+        #expect(code.contains("let _7: Bool"))
+        #expect(code.contains("init(_ _7: Bool, label: String)"))
+        #expect(code.contains("self._7 = _7"))
+        #expect(code.contains("self.label = label"))
+        #expect(code.contains("case _7 = 7"))
+    }
+
+    @Test(arguments: ["Missing", "NotAFunction"])
+    func invalidServiceMethodReferencesAreRejected(reference: String) {
+        let interface = CandidInterfaceDefinition(
+            namedTypes: ["NotAFunction": .bool],
+            service: .init(name: nil, signature: .init([
+                .init(name: "call", signatureType: .reference(reference))
+            ]))
+        )
+        #expect {
+            try CandidCodeGenerator().generateSwiftCode(for: interface, nameSpace: "Example")
+        } throws: { error in
+            guard case CandidCodeGeneratorError.invalidFunctionReference = error else { return false }
+            return true
+        }
+    }
+
+    @Test func generatedNamesAvoidExistingUnnamedTypes() throws {
+        let interface = CandidInterfaceDefinition(namedTypes: [
+            "UnnamedType0": .bool,
+            "Z": .record(["child": .record(["flag": .bool])])
+        ])
+        let context = try CodeGenerationContext(from: interface)
+        #expect(context.namedTypes["UnnamedType0"] == .bool)
+        #expect(context.namedTypes["UnnamedType1"] == .record(["flag": .bool]))
+        #expect(context.namedTypes["Z"] == .record(["child": .named("UnnamedType1")]))
+    }
+
+    @Test func duplicateNamesReceiveDistinctSuffixes() throws {
+        let interface = CandidInterfaceDefinition([
+            .init(name: "Item", type: .bool),
+            .init(name: "Item", type: .text),
+            .init(name: "Item", type: .natural8)
+        ])
+        let context = try CodeGenerationContext(from: interface)
+        #expect(Set(context.namedTypes.map(\.name)) == ["Item", "Item_0", "Item_1"])
+        for type: CandidType in [.bool, .text, .natural8] {
+            #expect(context.namedTypes.contains { $0.type == type })
+        }
+    }
+
+    @Test func reservedServiceTypeIsRenamedInReference() throws {
+        let interface = CandidInterfaceDefinition(
+            namedTypes: ["Data": .service(.init([]))],
+            service: .init(name: "API", signatureReference: "Data")
+        )
+        let code = try CandidCodeGenerator(.init(generateHeader: false))
+            .generateSwiftCode(for: interface, nameSpace: "Example")
+        #expect(code.contains("typealias API = C_Data"))
+    }
+
+    @Test func reservedFunctionTypeIsRenamedInServiceMethod() throws {
+        let interface = CandidInterfaceDefinition(
+            namedTypes: ["Data": .function(.init([CandidType](), []))],
+            service: .init(name: "API", signature: .init([
+                .init(name: "call", signatureType: .reference("Data"))
+            ]))
+        )
+        let context = try CodeGenerationContext(from: interface)
+        let service = try #require(context.service)
+        guard case .concrete(let methods) = service.type,
+              case .reference(let name) = methods.first?.signature else {
+            Issue.record("Expected a referenced service method")
+            return
+        }
+        #expect(name == "C_Data")
+        #expect(context.namedTypes["C_Data"] == .function(.init([CandidType](), [])))
+    }
+
+    @Test func absentFunctionReferenceGeneratesNil() throws {
+        let value = CandidValue.function(CandidFunction(signature: .init([CandidType](), []), method: nil))
+        let code = try CandidCodeGenerator(.init(generateHeader: false))
+            .generateSwiftCode(for: value, valueName: "callback")
+        #expect(code == "let callback: ICPCallNoArgsNoResult = nil")
     }
 }

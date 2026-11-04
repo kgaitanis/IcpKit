@@ -5,14 +5,44 @@
 //  Created by Konstantinos Gaitanis on 16.11.23.
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import IcpKit
 
-final class ICPTransactionHashTests: XCTestCase {
-    func testHash() throws {
+struct ICPTransactionHashTests {
+    @Test func hash() throws {
         for (transaction, expectedHash) in testVectors {
             let calculatedHash = try ICPCryptography.transactionHash(transaction).hex
-            XCTAssertEqual(calculatedHash, expectedHash)
+            #expect(calculatedHash == expectedHash)
+            #expect(try ICPCryptography.transactionHash(
+                transaction.operation, memo: transaction.memo, createdNanos: transaction.createdNanos).hex == expectedHash)
+        }
+
+        let operations: [(ICPBlock.Transaction.Operation, String?, String?, UInt64?)] = [
+            (.approve(from: Data([0xaa]), allowance: 42, expectedAllowance: 12,
+                      fee: 10, expiresAt: Date(timeIntervalSince1970: 2), spender: Data([0xcc])),
+             "aa", nil, 10),
+            (.burn(from: Data([0xaa]), amount: 42, spender: nil), "aa", nil, nil),
+            (.mint(to: Data([0xbb]), amount: 42), nil, "bb", nil),
+            (.transfer(from: Data([0xaa]), to: Data([0xbb]), amount: 42, fee: 10, spender: Data([0xcc])),
+             "aa", "bb", 10)
+        ]
+        for (operation, from, to, fee) in operations {
+            #expect(operation.amount == 42)
+            #expect(operation.fee == fee)
+            let transaction = ICPBlock.Transaction(memo: 7, createdNanos: 1_000_000_000, operation: operation)
+            let block = ICPBlock(parentHash: Data([0xdd]), timestamp: 2_000_000_000, transaction: transaction)
+            let hash = Data([1, 2, 3])
+            let converted = block.icpTransaction(blockIndex: 99, hash: hash)
+            #expect(converted.type.from == from)
+            #expect(converted.type.to == to)
+            #expect(converted.amount == 42)
+            #expect(converted.fee == fee.map(UInt.init))
+            #expect(converted.hash == hash)
+            #expect(converted.blockIndex == 99)
+            #expect(converted.memo == 7)
+            #expect(converted.createdNanos == 1_000_000_000)
+            #expect(converted.created == Date(timeIntervalSince1970: 1))
         }
     }
 }
@@ -44,6 +74,15 @@ nonisolated(unsafe) private let testVectors: [(ICPBlock.Transaction, String)] = 
             spender: nil
         )
     ), "e7fb27fc14d6439b3aceee0b88125d7f4ab902a583edfb2586ff8f32e9866f4b"),
+    // SHA-256 of independently encoded CBOR:
+    // a300a100a20062616101182a010702a1001a3b9aca00 (burn)
+    // a300a101a20062626201182a010702a1001a3b9aca00 (mint)
+    (.init(memo: 7, createdNanos: 1_000_000_000,
+           operation: .burn(from: Data([0xaa]), amount: 42, spender: nil)),
+     "d1d25e80dda380e18093cc862cf982593ea2f3c80eb6991b7ac57370a1406fc0"),
+    (.init(memo: 7, createdNanos: 1_000_000_000,
+           operation: .mint(to: Data([0xbb]), amount: 42)),
+     "3f371f123d8bdc8fb7a0f7598c7fb9b1cc84e6cd84b9f3e329591db749330487"),
     // TODO: Find some examples for approve operations
 //    (.init(
 //        memo: 0,

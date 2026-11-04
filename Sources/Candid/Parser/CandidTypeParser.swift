@@ -218,7 +218,15 @@ private extension CandidTypeParser {
     
     /// <name> (: <type>)?
     private func parseVariantKeyedType(_ stream: CandidParserStream) throws -> CandidKeyedType {
-        let key = try stream.expectNextTextOrWord()
+        let token = try stream.peekNext()
+        let label = try stream.expectNextTextOrWord()
+        let key: CandidKey
+        if case .word = token, let number = Int(label, radix: 10) {
+            key = CandidKey(number)
+        } else {
+            // Quoted numeric labels are text keys, not numeric field IDs.
+            key = CandidKey(label)
+        }
         let nextToken = try stream.peekNext()
         if nextToken == .colon {
             try stream.expectNext(.colon)

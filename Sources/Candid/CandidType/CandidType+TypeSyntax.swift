@@ -17,15 +17,68 @@ public extension CandidType {
             let itemString = items.map { "\($0.key.stringValue ?? String($0.key.intValue)): \($0.type.syntax)" }.joined(separator: "; ")
             return "\(primitiveType.syntax) { \(itemString)}"
             
-        case .function(_):
-            return "\(CandidPrimitiveType.function.syntax) () -> ()"
+        case .function(let signature):
+            return "\(CandidPrimitiveType.function.syntax) \(signature.syntax)"
             
-        case .service(_):
-            return "\(CandidPrimitiveType.service.syntax): {}"
+        case .service(let signature):
+            guard !signature.methods.isEmpty else { return "service {}" }
+            let methods = signature.methods.map { method in
+                let functionSyntax: String
+                switch method.functionSignature {
+                case .concrete(let function):
+                    functionSyntax = function.syntax
+                case .reference(let name):
+                    functionSyntax = name
+                }
+                return "\(method.name.candidLabelSyntax): \(functionSyntax);"
+            }.joined(separator: " ")
+            return "service { \(methods) }"
             
         case .named(let name): return name
         default: return primitiveType.syntax
         }
+    }
+}
+
+private extension CandidFunctionSignature {
+    // Shared by function types (with a "func" prefix) and inline service methods.
+    var syntax: String {
+        let inputs = arguments.map(\.syntax).joined(separator: ", ")
+        let outputs = results.map(\.syntax).joined(separator: ", ")
+        let modifiers = [
+            annotations.query ? "query" : nil,
+            annotations.oneWay ? "oneway" : nil,
+            annotations.compositeQuery ? "composite_query" : nil,
+        ].compactMap { $0 }
+        return (["(\(inputs)) -> (\(outputs))"] + modifiers).joined(separator: " ")
+    }
+}
+
+private extension CandidFunctionSignature.Parameter {
+    var syntax: String {
+        guard let name else { return type.syntax }
+        return "\(name.candidLabelSyntax): \(type.syntax)"
+    }
+}
+
+private extension String {
+    static let candidKeywords: Set<String> = [
+        "null", "opt", "vec", "record", "variant", "func", "service",
+        "oneway", "query", "composite_query", "blob", "type", "import",
+        "principal", "true", "false",
+    ]
+
+    var candidLabelSyntax: String {
+        if !Self.candidKeywords.contains(self),
+           range(of: #"\A[A-Za-z_][A-Za-z0-9_]*\z"#, options: .regularExpression) != nil {
+            return self
+        }
+        let escaped = replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+        return "\"\(escaped)\""
     }
 }
 

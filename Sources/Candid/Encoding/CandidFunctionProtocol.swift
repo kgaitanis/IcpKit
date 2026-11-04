@@ -19,14 +19,6 @@ public extension CandidFunctionProtocol {
     init(_ canister: String, _ methodName: String) throws {
         self.init(try CandidPrincipal(canister), methodName)
     }
-    
-    init(from decoder: Decoder) throws {
-        fatalError("not supported. Use CandidDecoder() instead.")
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        fatalError("not supported. Use CandidEncoder() instead.")
-    }
 }
 
 public protocol CandidFunctionSignatureProtocol {

@@ -45,12 +45,12 @@ class ICRC1TokenActor: ICPTokenActor {
     
     func approve(_ args: ICPTokenApproveArgs) async throws {
         let supportedStandards = try await service.icrc1_supported_standards()
-        if supportedStandards.map({ $0.name }).contains("ICRC-2") {
-            // see https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md#extensions-
-            let fee = try await service.icrc1_fee()
-            let _ = try await service2.icrc2_approve(ICRC2.ApproveArgs(fee, args)).get()
+        guard supportedStandards.map({ $0.name }).contains("ICRC-2") else {
+            throw ICRC1TokenError.approveNotSupported
         }
-        throw ICRC1TokenError.approveNotSupported
+        // see https://github.com/dfinity/ICRC-1/blob/main/standards/ICRC-1/README.md#extensions-
+        let fee = try await service.icrc1_fee()
+        let _ = try await service2.icrc2_approve(ICRC2.ApproveArgs(fee, args), sender: args.sender).get()
     }
 }
 

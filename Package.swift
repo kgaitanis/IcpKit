@@ -63,9 +63,14 @@ let package = Package(
             name: "bls12381",
             path: "Binaries/Bls12381.xcframework"
         ),
+        .target(
+            name: "TestSupport",
+            dependencies: ["IcpKit"],
+            path: "Tests/TestSupport"
+        ),
         .testTarget(
             name: "IcpKitTests",
-            dependencies: ["IcpKit",]
+            dependencies: ["IcpKit", "TestSupport"]
         ),
         .testTarget(
             name: "CandidTests",
@@ -91,7 +96,7 @@ let package = Package(
         ),
         .testTarget(
             name: "DABTests",
-            dependencies: ["Candid", "IcpKit", "DAB"]
+            dependencies: ["Candid", "IcpKit", "DAB", "TestSupport", "PotentCodables"]
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -5,27 +5,29 @@
 //  Created by Konstantinos Gaitanis on 19.04.23.
 //
 
-import XCTest
+import Foundation
+import Testing
+import CryptoKit
 @testable import IcpKit
 import Candid
 
-final class ICPCryptographyTests: XCTestCase {
+struct ICPCryptographyTests {
     // test vectors generated using https://pi7.org/hash/sha224
-    func testSHA224() throws {
-        XCTAssertEqual(ICPCryptography.sha224(Data()).hex, "D14A028C2A3A2BC9476102BB288234C415A2B01F828EA62AC5B3E42F".lowercased())
-        XCTAssertEqual(ICPCryptography.sha224("0".data(using: .utf8)!).hex, "dfd5f9139a820075df69d7895015360b76d0360f3d4b77a845689614")
-        XCTAssertEqual(ICPCryptography.sha224("abcd".data(using: .utf8)!).hex, "a76654d8e3550e9a2d67a0eeb6c67b220e5885eddd3fde135806e601")
-        XCTAssertEqual(ICPCryptography.sha224("./`~.?!@#$".data(using: .utf8)!).hex, "c30cf54e8acd816aa0ab041605279563175199d2661f8e7aae37fa1e")
-        XCTAssertEqual(ICPCryptography.sha224("Lorem ipsum dolor sit amet, consectetur adipiscing elit".data(using: .utf8)!).hex, "ff40dac83c1c21b71126074ced5c2f6195b6c993b53394ffb2e75f43")
+    @Test func sHA224() throws {
+        #expect(ICPCryptography.sha224(Data()).hex == "D14A028C2A3A2BC9476102BB288234C415A2B01F828EA62AC5B3E42F".lowercased())
+        #expect(ICPCryptography.sha224("0".data(using: .utf8)!).hex == "dfd5f9139a820075df69d7895015360b76d0360f3d4b77a845689614")
+        #expect(ICPCryptography.sha224("abcd".data(using: .utf8)!).hex == "a76654d8e3550e9a2d67a0eeb6c67b220e5885eddd3fde135806e601")
+        #expect(ICPCryptography.sha224("./`~.?!@#$".data(using: .utf8)!).hex == "c30cf54e8acd816aa0ab041605279563175199d2661f8e7aae37fa1e")
+        #expect(ICPCryptography.sha224("Lorem ipsum dolor sit amet, consectetur adipiscing elit".data(using: .utf8)!).hex == "ff40dac83c1c21b71126074ced5c2f6195b6c993b53394ffb2e75f43")
     }
     
     // test vectors generated using https://crccalc.com/
-    func testCRC32() {
-        XCTAssertEqual(CRC32.checksum(Data()).hex, "00000000")
-        XCTAssertEqual(CRC32.checksum("0".data(using: .utf8)!).hex, "F4DBDF21".lowercased())
-        XCTAssertEqual(CRC32.checksum("abcd".data(using: .utf8)!).hex, "ED82CD11".lowercased())
-        XCTAssertEqual(CRC32.checksum("./`~.?!@#$".data(using: .utf8)!).hex, "77838090".lowercased())
-        XCTAssertEqual(CRC32.checksum("Lorem ipsum dolor sit amet, consectetur adipiscing elit".data(using: .utf8)!).hex, "6C8ADA71".lowercased())
+    @Test func cRC32() {
+        #expect(CRC32.checksum(Data()).hex == "00000000")
+        #expect(CRC32.checksum("0".data(using: .utf8)!).hex == "F4DBDF21".lowercased())
+        #expect(CRC32.checksum("abcd".data(using: .utf8)!).hex == "ED82CD11".lowercased())
+        #expect(CRC32.checksum("./`~.?!@#$".data(using: .utf8)!).hex == "77838090".lowercased())
+        #expect(CRC32.checksum("Lorem ipsum dolor sit amet, consectetur adipiscing elit".data(using: .utf8)!).hex == "6C8ADA71".lowercased())
     }
     
     // test vectors generated using keysmith https://github.com/dfinity/keysmith and following procedure
@@ -37,14 +39,65 @@ final class ICPCryptographyTests: XCTestCase {
     //    d. This is the hash of the serialized public key
     // 4. Serialize publicKey from 1 using ICPCrypto.serialiseDER
     // 5. Compare hash224 of publicKey with the one obtained at 3.d
-    func testDerSerialiser() throws {
-        XCTAssertEqual(try ICPCryptography.der(uncompressedEcPublicKey: Data.fromHex("046acf4c93dd993cd736420302eb70da254532ec3179250a21eec4ce823ff289aaa382cb19576b2c6447db09cb45926ebd69ce288b1804580fe62c343d3252ec6e")!).hex, "3056301006072a8648ce3d020106052b8104000a034200046acf4c93dd993cd736420302eb70da254532ec3179250a21eec4ce823ff289aaa382cb19576b2c6447db09cb45926ebd69ce288b1804580fe62c343d3252ec6e")
+    @Test func derSerialiser() throws {
+        #expect(try ICPCryptography.der(uncompressedEcPublicKey: Data.fromHex("046acf4c93dd993cd736420302eb70da254532ec3179250a21eec4ce823ff289aaa382cb19576b2c6447db09cb45926ebd69ce288b1804580fe62c343d3252ec6e")!).hex == "3056301006072a8648ce3d020106052b8104000a034200046acf4c93dd993cd736420302eb70da254532ec3179250a21eec4ce823ff289aaa382cb19576b2c6447db09cb45926ebd69ce288b1804580fe62c343d3252ec6e")
         
-        XCTAssertEqual(try ICPCryptography.der(uncompressedEcPublicKey: Data.fromHex("04723cdc9bd653014a501159fb89dcc6e2cf03f242955b987b53dd6193815d8a9d4a4f5b902b2819d270c28f0710ad96fea5b13f5fe30c6e244bf2941ebf4ec36e")!).hex, "3056301006072a8648ce3d020106052b8104000a03420004723cdc9bd653014a501159fb89dcc6e2cf03f242955b987b53dd6193815d8a9d4a4f5b902b2819d270c28f0710ad96fea5b13f5fe30c6e244bf2941ebf4ec36e")
+        #expect(try ICPCryptography.der(uncompressedEcPublicKey: Data.fromHex("04723cdc9bd653014a501159fb89dcc6e2cf03f242955b987b53dd6193815d8a9d4a4f5b902b2819d270c28f0710ad96fea5b13f5fe30c6e244bf2941ebf4ec36e")!).hex == "3056301006072a8648ce3d020106052b8104000a03420004723cdc9bd653014a501159fb89dcc6e2cf03f242955b987b53dd6193815d8a9d4a4f5b902b2819d270c28f0710ad96fea5b13f5fe30c6e244bf2941ebf4ec36e")
+
+        let publicKey = try #require(Data.fromHex(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" +
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"))
+        let der = try ICPCryptography.der(uncompressedEcPublicKey: publicKey)
+        #expect(try ICPCryptography.decode(derEncodedPublicKey: der) == publicKey)
+        for invalidKey in [Data(), Data(repeating: 0, count: 65)] {
+            #expect(throws: ICPCryptography.DERSerialisationError.self) {
+                try ICPCryptography.der(uncompressedEcPublicKey: invalidKey)
+            }
+        }
+        for malformedDER in ["30053000030100", "300e300906072a8648ce3d0201030100"] {
+            #expect(throws: ICPPublicKey.Error.invalidDerPublicKey) {
+                try ICPPublicKey(derRepresentation: #require(Data.fromHex(malformedDER)))
+            }
+        }
+
+        // A private scalar of one has the standard secp256k1 generator as its public key.
+        let privateKey = Data(repeating: 0, count: 31) + Data([1])
+        let message = Data("signing test".utf8)
+        let domain: ICPDomainSeparator = "ic-request"
+        let signature = try ICPCryptography.ellipticSign(message, domain: domain, with: privateKey)
+        #expect(signature.count == 65)
+        #expect(signature.last == 27 || signature.last == 28)
+        let key = try ICPPublicKey(rawRepresentation: publicKey, algorithm: .secp256k1)
+        try ICPCryptography.verify(
+            signature: Data(signature.prefix(64)),
+            message: domain.domainSeparatedData(message), publicKey: key)
+        #expect(try !ICPCryptography.verifySecp256k1(
+            signature: Data(signature.prefix(64)), message: message, publicKeyUncompressed: publicKey))
+        #expect(throws: ICPCryptography.SignError.self) {
+            try ICPCryptography.ellipticSign(
+                Data(repeating: 0, count: 32), privateKey: Data(repeating: 0, count: 32))
+        }
+        for malformedSignature in [Data(), Data(repeating: 0xff, count: 64)] {
+            #expect(throws: ICPPublicKey.Error.invalidSignature) {
+                try ICPCryptography.verifySecp256k1(
+                    signature: malformedSignature, message: message, publicKeyUncompressed: publicKey)
+            }
+            #expect(throws: ICPPublicKey.Error.invalidSignature) {
+                try ICPCryptography.verify(signature: malformedSignature, message: message, publicKey: key)
+            }
+        }
+
+        let p256 = try P256.Signing.PrivateKey(rawRepresentation: privateKey)
+        let p256Key = try ICPPublicKey(rawRepresentation: p256.publicKey.x963Representation, algorithm: .p256)
+        let p256Signature = try p256.signature(for: message).rawRepresentation
+        try ICPCryptography.verify(signature: p256Signature, message: message, publicKey: p256Key)
+        #expect(throws: ICPPublicKey.Error.invalidSignature) {
+            try ICPCryptography.verify(signature: p256Signature, message: message + Data([0]), publicKey: p256Key)
+        }
     }
     
     // test vectors from https://internetcomputer.org/docs/current/references/id-encoding-spec#test-vectors
-    func testCanonicalText() throws {
+    @Test func canonicalText() throws {
         let testVectors: [(String, String)] = [
             ("000102030405060708", "xtqug-aqaae-bagba-faydq-q"),
             ("00","2ibo7-dia"),
@@ -53,12 +106,12 @@ final class ICPCryptographyTests: XCTestCase {
         ]
         for (dataHex, canonical) in testVectors {
             let data = Data.fromHex(dataHex)!
-            XCTAssertEqual(CanonicalText.encode(data), canonical)
-            XCTAssertEqual(try CanonicalText.decode(canonical), data)
+            #expect(CanonicalText.encode(data) == canonical)
+            #expect(try CanonicalText.decode(canonical) == data)
         }
     }
     
-    func testAccountTextualRepresentation() throws {
+    @Test func accountTextualRepresentation() throws {
         let principal: ICPPrincipal = "k2t6j-2nvnp-4zjm3-25dtz-6xhaa-c7boj-5gayf-oj3xs-i43lp-teztq-6ae"
         let testVectors: [(ICPAccount, String)] = [
             (.mainAccount(of: principal), principal.string),
@@ -66,8 +119,8 @@ final class ICPCryptographyTests: XCTestCase {
         ]
         for (account, text) in testVectors {
             let decodedAccount = try ICPAccount(textualRepresentation: text)
-            XCTAssertEqual(account.textualRepresentation(), text)
-            XCTAssertEqual(decodedAccount.textualRepresentation(), text)
+            #expect(account.textualRepresentation() == text)
+            #expect(decodedAccount.textualRepresentation() == text)
         }
     }
     
@@ -75,9 +128,9 @@ final class ICPCryptographyTests: XCTestCase {
     // `./keysmith principal`
 //    func testPrincipal() throws {
 //        let principal1 = try ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet1PublicKey)
-//        XCTAssertEqual(principal1.string, "mi5lp-tjcms-b77vo-qbfgp-cjzyc-imkew-uowpv-ca7f4-l5fzx-yy6ba-qqe")
+//        #expect(principal1.string == "mi5lp-tjcms-b77vo-qbfgp-cjzyc-imkew-uowpv-ca7f4-l5fzx-yy6ba-qqe")
 //        let principal2 = try ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet2PublicKey)
-//        XCTAssertEqual(principal2.string, "sxmip-mryjb-rjp3v-ol36n-miqtr-ji4i6-5k6h3-fdy2n-gz5lr-c2s6s-sqe")
+//        #expect(principal2.string == "sxmip-mryjb-rjp3v-ol36n-miqtr-ji4i6-5k6h3-fdy2n-gz5lr-c2s6s-sqe")
 //    }
 //    
 //    // test vectors generated using keysmith https://github.com/dfinity/keysmith
@@ -85,40 +138,56 @@ final class ICPCryptographyTests: XCTestCase {
 //    func testAccount() throws {
 //        let principal1 = try ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet1PublicKey)
 //        let mainAccount1 = try ICPAccount.mainAccount(of: principal1)
-//        XCTAssertEqual(mainAccount1.accountId.hex, "cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a1c")
+//        #expect(mainAccount1.accountId.hex == "cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a1c")
 //        
 //        let principal2 = try ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet2PublicKey)
 //        let mainAccount2 = try ICPAccount.mainAccount(of: principal2)
-//        XCTAssertEqual(mainAccount2.accountId.hex, "6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f0")
+//        #expect(mainAccount2.accountId.hex == "6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f0")
 //    }
     
-    func testValidateAccountId() {
-        XCTAssertTrue(ICPCryptography.validateAccountId("6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f0"))
-        XCTAssertTrue(ICPCryptography.validateAccountId("cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a1c"))
-        XCTAssertFalse(ICPCryptography.validateAccountId("6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f1"))
-        XCTAssertFalse(ICPCryptography.validateAccountId("cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a10"))
+    @Test func validateAccountId() {
+        for invalid in ["", "not-hex", "00", String(repeating: "00", count: 33)] {
+            #expect(!ICPCryptography.validateAccountId(invalid))
+        }
+        for length in [0, 31, 33] {
+            #expect(throws: ICPCryptography.ICPAccountError.invalidSubAccountId) {
+                try ICPCryptography.accountId(of: ICPPrincipal("aaaaa-aa"), subAccountId: Data(repeating: 0, count: length))
+            }
+        }
+        for invalid in [".", "a.b.c", "aaaaa-aa-checksum.zz", "a.1"] {
+            #expect(throws: ICPAccount.ICPAccountError.invalidTextualRepresentation) {
+                try ICPAccount(textualRepresentation: invalid)
+            }
+        }
+        #expect(throws: ICPAccount.ICPAccountError.invalidChecksum) {
+            try ICPAccount(textualRepresentation: "aaaaa-aa-invalid.1")
+        }
+        #expect(ICPCryptography.validateAccountId("6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f0"))
+        #expect(ICPCryptography.validateAccountId("cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a1c"))
+        #expect(!ICPCryptography.validateAccountId("6c14be31a1df0f5f061520e5d8e0c08bb3743a671ab4a3bb7b05743a8ca3c1f1"))
+        #expect(!ICPCryptography.validateAccountId("cafd0a2c27f41a851837b00f019b93e741f76e4147fe74435fb7efb836826a10"))
     }
     
-    func testOrderIndependentHash() throws {
+    @Test func orderIndependentHash() throws {
         let hash = { try OrderIndependentHasher.orderIndependentHash($0) }
-        XCTAssertEqual(try hash(0).base64EncodedString(), "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")
-        XCTAssertEqual(try hash(624485).base64EncodedString(), "feIrCG+oMpxyE/8xmkTcLKgeI+6pn1/YvXIiLU/8tsI=")
-        XCTAssertEqual(try hash("abcd").base64EncodedString(), "iNQmb9TmM40TuEX88olXnSCciXgjuSF9o+Fhk28DFYk=")
-        XCTAssertEqual(try hash(Data([0x47, 0x98, 0xfd])).base64EncodedString(), "6aHlLhIiGuehu602UlJY0yLJa4O2mqHUSz5JCuDg4X0=")
-        XCTAssertEqual(try hash([
+        #expect(try hash(0).base64EncodedString() == "bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")
+        #expect(try hash(624485).base64EncodedString() == "feIrCG+oMpxyE/8xmkTcLKgeI+6pn1/YvXIiLU/8tsI=")
+        #expect(try hash("abcd").base64EncodedString() == "iNQmb9TmM40TuEX88olXnSCciXgjuSF9o+Fhk28DFYk=")
+        #expect(try hash(Data([0x47, 0x98, 0xfd])).base64EncodedString() == "6aHlLhIiGuehu602UlJY0yLJa4O2mqHUSz5JCuDg4X0=")
+        #expect(try hash([
             Data([0x47, 0x98, 0xfd]),
             Data([0x47, 0x98, 0xfd]),
-        ]).base64EncodedString(), "PpjoUxKzZoOgTSezNZvEfnq0yClqvqXdJwcpYBgxLbg=")
+        ]).base64EncodedString() == "PpjoUxKzZoOgTSezNZvEfnq0yClqvqXdJwcpYBgxLbg=")
         
-        XCTAssertThrowsError(try hash(-1))
+        #expect(throws: (any Error).self) { try hash(-1) }
         
-        XCTAssertEqual(try hash([
+        #expect(try hash([
             "abcd": Data([0x47, 0x98, 0xfd]),
             "fngt": Data([0x47, 0x98, 0xfd]),
-        ]).base64EncodedString(), "CxCF+O8wyQLiW2Dy18SkenGre+PaEtsrMptNi1fql/o=")
+        ]).base64EncodedString() == "CxCF+O8wyQLiW2Dy18SkenGre+PaEtsrMptNi1fql/o=")
     }
     
-    func testBlsSignatureVerificationSucceeds() throws {
+    @Test func blsSignatureVerificationSucceeds() throws {
         let icpRootPublicKey = "814c0e6ec71fab583b08bd81373c255c3c371b2e84863c98a4f1e08b74235d14fb5d9c0cd546d9685f913a0c0b2cc5341583bf4b4392e467db96d65b9bb4cb717112f8472e0d5a4d14505ffd7484b01291091c5f87b98883463f98091a0baaae"
         let helloPublicKey = "a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5"
         let cases: [(String, String, String)] = [
@@ -129,13 +198,13 @@ final class ICPCryptographyTests: XCTestCase {
         ]
 
         for (messageHex, publicKeyHex, signatureHex) in cases {
-            XCTAssertNoThrow(try ICPCryptography.verifyBlsSignature(
-                message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!))
+            #expect(throws: Never.self) { try ICPCryptography.verifyBlsSignature(
+                message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!) }
         }
         
     }
 
-    func testBlsSignatureVerificationFails() throws {
+    @Test func blsSignatureVerificationFails() throws {
         let helloPublicKey = "a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5"
         let helloSignature = "b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe"
         let icpRootPublicKey = "814c0e6ec71fab583b08bd81373c255c3c371b2e84863c98a4f1e08b74235d14fb5d9c0cd546d9685f913a0c0b2cc5341583bf4b4392e467db96d65b9bb4cb717112f8472e0d5a4d14505ffd7484b01291091c5f87b98883463f98091a0baaae"
@@ -146,67 +215,75 @@ final class ICPCryptographyTests: XCTestCase {
         ]
 
         for (messageHex, publicKeyHex, signatureHex) in cases {
-            XCTAssertThrowsError(try ICPCryptography.verifyBlsSignature(
-                message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!)) { error in
-                XCTAssertEqual(error as? ICPStateCertificateError, .invalidSignature)
+            #expect(throws: ICPStateCertificateError.invalidSignature) {
+                try ICPCryptography.verifyBlsSignature(
+                    message: Data.fromHex(messageHex)!, publicKey: Data.fromHex(publicKeyHex)!, signature: Data.fromHex(signatureHex)!)
             }
         }
     }
     
-    func testBlsSignatureVerificationRejectsMalformedInputs() throws {
+    @Test func blsSignatureVerificationRejectsMalformedInputs() throws {
         let message = "hello".data
         let publicKey = Data.fromHex("a7623a93cdb56c4d23d99c14216afaab3dfd6d4f9eb3db23d038280b6d5cb2caaee2a19dd92c9df7001dede23bf036bc0f33982dfb41e8fa9b8e96b5dc3e83d55ca4dd146c7eb2e8b6859cb5a5db815db86810b8d12cee1588b5dbf34a4dc9a5")!
         let signature = Data.fromHex("b89e13a212c830586eaa9ad53946cd968718ebecc27eda849d9232673dcd4f440e8b5df39bf14a88048c15e16cbcaabe")!
         
-        func XCTAssertInvalidBlsSignature(
+        func expectInvalidBlsSignature(
             publicKey: Data = publicKey,
             signature: Data = signature,
-            file: StaticString = #filePath,
-            line: UInt = #line
+            sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath, line: #line, column: #column)
         ) {
-            XCTAssertThrowsError(
+            #expect(throws: ICPStateCertificateError.invalidSignature, sourceLocation: sourceLocation) {
                 try ICPCryptography.verifyBlsSignature(
-                    message: message,
-                    publicKey: publicKey,
-                    signature: signature
-                ),
-                file: file,
-                line: line
-            ) { error in
-                XCTAssertEqual(error as? ICPStateCertificateError, .invalidSignature, file: file, line: line)
+                    message: message, publicKey: publicKey, signature: signature)
             }
         }
         
-        XCTAssertInvalidBlsSignature(signature: Data())
-        XCTAssertInvalidBlsSignature(publicKey: Data())
-        XCTAssertInvalidBlsSignature(signature: Data(repeating: 0xff, count: signature.count))
-        XCTAssertInvalidBlsSignature(publicKey: Data(repeating: 0xff, count: publicKey.count))
+        expectInvalidBlsSignature(signature: Data())
+        expectInvalidBlsSignature(publicKey: Data())
+        expectInvalidBlsSignature(signature: Data(repeating: 0xff, count: signature.count))
+        expectInvalidBlsSignature(publicKey: Data(repeating: 0xff, count: publicKey.count))
         var uncompressedSignature = signature
         uncompressedSignature[0] &= 0x7f
-        XCTAssertInvalidBlsSignature(signature: uncompressedSignature)
+        expectInvalidBlsSignature(signature: uncompressedSignature)
         var uncompressedPublicKey = publicKey
         uncompressedPublicKey[0] &= 0x7f
-        XCTAssertInvalidBlsSignature(publicKey: uncompressedPublicKey)
+        expectInvalidBlsSignature(publicKey: uncompressedPublicKey)
 
-        XCTAssertInvalidBlsSignature(signature: signature.dropLast())
-        XCTAssertInvalidBlsSignature(signature: signature + Data([0x00]))
-        XCTAssertInvalidBlsSignature(publicKey: publicKey.dropLast())
-        XCTAssertInvalidBlsSignature(publicKey: publicKey + Data([0x00]))
+        expectInvalidBlsSignature(signature: signature.dropLast())
+        expectInvalidBlsSignature(signature: signature + Data([0x00]))
+        expectInvalidBlsSignature(publicKey: publicKey.dropLast())
+        expectInvalidBlsSignature(publicKey: publicKey + Data([0x00]))
         
         var identitySignature = Data(repeating: 0x00, count: signature.count)
         identitySignature[0] = 0xc0
-        XCTAssertInvalidBlsSignature(signature: identitySignature)
+        expectInvalidBlsSignature(signature: identitySignature)
         
         var identityPublicKey = Data(repeating: 0x00, count: publicKey.count)
         identityPublicKey[0] = 0xc0
-        XCTAssertInvalidBlsSignature(publicKey: identityPublicKey)
+        expectInvalidBlsSignature(publicKey: identityPublicKey)
         
         var alteredPublicKey = publicKey
         alteredPublicKey[alteredPublicKey.count - 1] ^= 0x01
-        XCTAssertInvalidBlsSignature(publicKey: alteredPublicKey)
+        expectInvalidBlsSignature(publicKey: alteredPublicKey)
         
         var alteredSignature = signature
         alteredSignature[alteredSignature.count - 1] ^= 0x01
-        XCTAssertInvalidBlsSignature(signature: alteredSignature)
+        expectInvalidBlsSignature(signature: alteredSignature)
+    }
+
+    @Test func hexAndPrincipalValidation() throws {
+        #expect(Data.fromHex("abc") == nil)
+        #expect(Data.fromHex("gg") == nil)
+        #expect(Data.fromHex("") == Data())
+        #expect(Data.fromHex("00aAFF") == Data([0, 170, 255]))
+        #expect(throws: CanonicalText.CanonicalTextError.invalidChecksum) { try CanonicalText.decode("") }
+        #expect(throws: CanonicalText.CanonicalTextError.invalidChecksum) { try CanonicalText.decode("baaaa-aa") }
+        #expect(try CanonicalText.decode("aaaaa-aa") == Data())
+    }
+
+    @Test func representationHashRejectsUnsupportedValues() {
+        #expect(throws: (any Error).self) { try OrderIndependentHasher.orderIndependentHash(true) }
+        #expect(throws: (any Error).self) { try OrderIndependentHasher.orderIndependentHash(["é": 1]) }
+        #expect(throws: (any Error).self) { try OrderIndependentHasher.orderIndependentHash(-1) }
     }
 }
