@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import TestSupport
 
 @testable import IcpKit
 
@@ -89,6 +90,31 @@ struct ICPRequestClientRootKeyTests {
 
         #expect(verifiedClient.network.rootKey == expectedRootKey)
         #expect(mockClient.lastRequest?.url == network.statusURL)
+        #expect(mockClient.lastRequest?.method == "GET")
+        #expect(mockClient.lastRequest?.body == nil)
+        #expect(mockClient.lastRequest?.timeout == 30)
+
+        for response in [
+            HttpResponse(data: Data("unavailable".utf8), statusCode: 503),
+            HttpResponse(statusCode: 503),
+            HttpResponse(statusCode: 200),
+            HttpResponse(data: try ICPCryptography.CBOR.serialise(StatusResponseTest(root_key: nil)), statusCode: 200)
+        ] {
+            let failingClient = ICPRequestClient(MockHttpClient(response: response))
+            await #expect {
+                try await failingClient.fetchRootKey()
+            } throws: { error in
+                switch error {
+                case ICPRemoteClientError.failed(let code, let message):
+                    return response.statusCode == 503 && code == 503 && message == (response.data == nil ? "" : "unavailable")
+                case ICPRemoteClientError.noResponseData:
+                    return response.data == nil
+                case ICPRemoteClientError.missingRootKey:
+                    return response.statusCode == 200 && response.data != nil
+                default: return false
+                }
+            }
+        }
     }
 }
 
@@ -103,18 +129,4 @@ private struct ReadStateTest: Encodable {
 
 private struct StatusResponseTest: Encodable {
     let root_key: Data?
-}
-
-private final class MockHttpClient: @unchecked Sendable, HttpClient {
-    private(set) var lastRequest: HttpRequest?
-    private let response: HttpResponse
-
-    init(response: HttpResponse) {
-        self.response = response
-    }
-
-    func fetch(_ request: HttpRequest) async throws -> HttpResponse {
-        lastRequest = request
-        return response
-    }
 }
