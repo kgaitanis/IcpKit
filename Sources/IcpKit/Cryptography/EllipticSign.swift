@@ -71,58 +71,7 @@ private final class EllipticCurveEncrypterSecp256k1 {
         
         output[64] = UInt8(recid)
         return output
-    }
-    
-    /// Converts serialized signature into library's signature format. Use it to supply signature to
-    /// the publicKey(signature:hash:) method.
-    ///
-    /// - Parameter signature: serialized 65-byte signature
-    /// - Returns: signature structure
-    func `import`(signature: Data) -> secp256k1_ecdsa_recoverable_signature {
-        precondition(signature.count == 65, "Signature must be 65 byte size")
-        var sig = secp256k1_ecdsa_recoverable_signature()
-        let recid = Int32(signature[64])
-        signature.withUnsafeBytes { input -> Void in
-            secp256k1_ecdsa_recoverable_signature_parse_compact(context, &sig, input.baseAddress!.assumingMemoryBound(to: UInt8.self), recid)
-        }
-        return sig
-    }
-    
-    /// Recovers public key from the signature and the hash. Use import(signature:) to convert signature from bytes.
-    /// Use export(publicKey:compressed) to convert recovered public key into bytes.
-    ///
-    /// - Parameters:
-    ///   - signature: signature structure
-    ///   - hash: 32-byte (256-bit) hash of a message
-    /// - Returns: public key structure or nil, if signature invalid
-    func publicKey(signature: inout secp256k1_ecdsa_recoverable_signature, hash: Data) -> secp256k1_pubkey? {
-        precondition(hash.count == 32, "Hash must be 32 bytes size")
-        
-        let bytes = hash.withUnsafeBytes { key in
-            [UInt8](UnsafeBufferPointer(start: key.baseAddress!.assumingMemoryBound(to: UInt8.self), count: hash.count))
-        }
-        
-        var outPubKey = secp256k1_pubkey()
-        let status = secp256k1_ecdsa_recover(context, &outPubKey, &signature, bytes)
-        return status == 1 ? outPubKey : nil
-    }
-    
-    /// Converts public key from library's data structure to bytes
-    ///
-    /// - Parameters:
-    ///   - publicKey: public key structure to convert.
-    ///   - compressed: whether public key should be compressed.
-    /// - Returns: If compression enabled, public key is 33 bytes size, otherwise it is 65 bytes.
-    func export(publicKey: inout secp256k1_pubkey, compressed: Bool) -> Data {
-        var output = Data(count: compressed ? 33 : 65)
-        var outputLen: Int = output.count
-        let compressedFlags = compressed ? UInt32(SECP256K1_EC_COMPRESSED) : UInt32(SECP256K1_EC_UNCOMPRESSED)
-        output.withUnsafeMutableBytes { pointer -> Void in
-            secp256k1_ec_pubkey_serialize(context, pointer.baseAddress!.assumingMemoryBound(to: UInt8.self), &outputLen, &publicKey, compressedFlags)
-        }
-        return output
-    }
-    
+    }    
 }
 
 public extension ICPCryptography {

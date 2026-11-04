@@ -21,7 +21,7 @@ public extension CandidType {
             return "\(CandidPrimitiveType.function.syntax) () -> ()"
             
         case .service(_):
-            return "\(CandidPrimitiveType.service.syntax): {}"
+            return "\(CandidPrimitiveType.service.syntax) {}"
             
         case .named(let name): return name
         default: return primitiveType.syntax

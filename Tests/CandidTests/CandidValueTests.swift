@@ -30,18 +30,40 @@ struct CandidValueTests {
     func typeSyntaxCanBeParsedBack(_ type: CandidType, _ syntax: String) throws {
         #expect(type.syntax == syntax)
         if case .named = type { return }
-        if case .service = type {
-            withKnownIssue("Service syntax emits a colon that parseSingleType rejects") {
-                let parsed = try CandidParser().parseSingleType(syntax)
-                #expect(parsed == type)
-            }
-        } else if case .variant(let fields) = type, fields.items.contains(where: { !$0.key.hasString }) {
+        #expect(try CandidParser().parseSingleType(syntax) == type)
+    }
+
+    @Test func serviceTypeAndCanisterDeclarationUseDifferentColonSyntax() async throws {
+        let parser = CandidParser()
+        #expect(try parser.parseSingleType("service {}") == .service())
+        #expect(throws: CandidParserError.self) {
+            try parser.parseSingleType("service: {}")
+        }
+        let declaration = try await parser.parseInterfaceDescription("service: {}")
+        #expect(declaration.service != nil)
+        await #expect(throws: CandidParserError.self) {
+            _ = try await parser.parseInterfaceDescription("service {}")
+        }
+    }
+
+    @Test func variantLabelsPreserveNumericAndQuotedKeys() throws {
+        let cases: [(String, [CandidKeyedType])] = [
+            ("variant { 0: null; 1: text }", [.init(0, .null), .init(1, .text)]),
+            (#"variant { "0": null; "1": text }"#, [.init("0", .null), .init("1", .text)]),
+            (#"variant { 0; "0": text; ok: bool }"#, [.init(0, .null), .init("0", .text), .init("ok", .bool)]),
+            ("variant { 0; ok }", [.init(0, .null), .init("ok", .null)])
+        ]
+        for (syntax, expected) in cases {
             let parsed = try CandidParser().parseSingleType(syntax)
-            withKnownIssue("Numeric variant labels are parsed as string labels") {
-                #expect(parsed == type)
+            guard case .variant(let fields) = parsed else {
+                Issue.record("Expected variant for \(syntax)")
+                continue
             }
-        } else {
-            #expect(try CandidParser().parseSingleType(syntax) == type)
+            let actual = fields.items.sorted()
+            let expected = expected.sorted()
+            #expect(actual == expected, "\(syntax)")
+            // Equality compares numeric IDs; also check that quoted labels retain their names.
+            #expect(actual.map(\.key.stringValue) == expected.map(\.key.stringValue), "\(syntax)")
         }
     }
 
@@ -394,6 +416,6 @@ private let typeSyntaxCases: [(CandidType, String)] = [
     (.record(["a": .bool, "b": .text]), "record { a: bool; b: text}"),
     (.variant([0: .null, 1: .text]), "variant { 0: null; 1: text}"),
     (.function(), "func () -> ()"),
-    (.service(), "service: {}"),
+    (.service(), "service {}"),
     (.named("Alias"), "Alias"),
 ]

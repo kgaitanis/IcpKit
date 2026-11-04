@@ -142,12 +142,7 @@ struct ICRC1TokenActorTests {
     @Test func approveSuccessReturnsNormally() async throws {
         let http = try approvalClient(.Ok(42))
         let actor = ICRC1TokenActor(canister, DABMockResponses.requestClient(http))
-        try await withKnownIssue("ICRC1TokenActor.approve falls through to approveNotSupported after success") {
-            try await actor.approve(approvalArgs())
-        } matching: { issue in
-            guard let error = issue.error, case ICRC1TokenError.approveNotSupported = error else { return false }
-            return true
-        }
+        try await actor.approve(approvalArgs())
     }
 
     @Test func approveMapsArgumentsAndPropagatesLedgerError() async throws {
@@ -184,10 +179,8 @@ struct ICRC1TokenActorTests {
         await #expect(throws: ICRC2.ApproveError.self) { try await actor.approve(approvalArgs()) }
         let request = try #require(http.requests.first { $0.url.lastPathComponent == "call" })
         let envelope = try DABMockResponses.envelope(request)
-        withKnownIssue("ICRC1TokenActor.approve does not pass args.sender to icrc2_approve") {
-            #expect(envelope.content.sender == DABTestSigner().principal.bytes)
-            #expect(envelope.sender_sig != nil)
-        }
+        #expect(envelope.content.sender == DABTestSigner().principal.bytes)
+        #expect(envelope.sender_sig != nil)
     }
 
     @Test func balancePropagatesHTTPFailure() async throws {
