@@ -5,12 +5,14 @@
 //  Created by Konstantinos Gaitanis on 04.05.23.
 //
 
-import XCTest
+import Foundation
+import Testing
+import PotentCBOR
 @testable import IcpKit
 
-final class ICPCertificateTests: XCTestCase {
+struct ICPCertificateTests {
 
-    func testCborParsing() throws {
+    @Test func cborParsing() throws {
 // from https://internetcomputer.org/docs/current/references/ic-interface-spec/#example
 //       ─┬─┬╴"a" ─┬─┬╴"x" ─╴"hello"
 //        │ │      │ └╴Empty
@@ -22,8 +24,7 @@ final class ICPCertificateTests: XCTestCase {
         let cbor = try ICPCryptography.CBOR.deserialiseCbor(from: cborData)
         let certificate = try ICPStateCertificate.HashTreeNode.buildTree(from: cbor)
         
-        XCTAssertEqual(certificate,
-            .fork(
+        #expect(certificate == .fork(
                 left: .fork(
                     left: .labeled("a", .fork(
                         left: .fork(
@@ -37,32 +38,60 @@ final class ICPCertificateTests: XCTestCase {
             )
         )
         
-        XCTAssertEqual(certificate.getNode(for: "/a/x"), .leaf("hello".data))
-        XCTAssertEqual(certificate.getNode(for: "/a/y"), .leaf("world".data))
-        XCTAssertEqual(certificate.getNode(for: "/b"), .leaf("good".data))
-        XCTAssertEqual(certificate.getNode(for: "/c"), .empty)
-        XCTAssertEqual(certificate.getNode(for: "/d"), .leaf("morning".data))
-        XCTAssertNil(certificate.getNode(for: "/x"))
-        XCTAssertNil(certificate.getNode(for: "/a/c"))
-        XCTAssertNil(certificate.getNode(for: "/a/x/x"))
-        XCTAssertEqual(certificate.getNode(for: "/a"), .fork(
+        #expect(certificate.getNode(for: "/a/x") == .leaf("hello".data))
+        #expect(certificate.getNode(for: "/a/y") == .leaf("world".data))
+        #expect(certificate.getNode(for: "/b") == .leaf("good".data))
+        #expect(certificate.getNode(for: "/c") == .empty)
+        #expect(certificate.getNode(for: "/d") == .leaf("morning".data))
+        #expect(certificate.getNode(for: "/x") == nil)
+        #expect(certificate.getNode(for: "/a/c") == nil)
+        #expect(certificate.getNode(for: "/a/x/x") == nil)
+        #expect(certificate.getNode(for: "/a") == .fork(
             left: .fork(
                 left: .labeled("x", .leaf("hello".data)),
                 right: .empty),
             right: .labeled("y", .leaf("world".data))))
         
-        XCTAssertEqual(certificate.getValue(for: "/a/x"), "hello".data)
-        XCTAssertEqual(certificate.getValue(for: "/a/y"), "world".data)
-        XCTAssertEqual(certificate.getValue(for: "/b"), "good".data)
-        XCTAssertEqual(certificate.getValue(for: "/d"), "morning".data)
-        XCTAssertEqual(certificate.getValue(for: "/unknown_path"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/c"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/a"), nil)
+        #expect(certificate.getValue(for: "/a/x") == "hello".data)
+        #expect(certificate.getValue(for: "/a/y") == "world".data)
+        #expect(certificate.getValue(for: "/b") == "good".data)
+        #expect(certificate.getValue(for: "/d") == "morning".data)
+        #expect(certificate.getValue(for: "/unknown_path") == nil)
+        #expect(certificate.getValue(for: "/c") == nil)
+        #expect(certificate.getValue(for: "/a") == nil)
         
-        XCTAssertEqual(certificate.hash().hex, "eb5c5b2195e62d996b84c9bcc8259d19a83786a2f59e0878cec84c811f669aa0")
+        #expect(certificate.hash().hex == "eb5c5b2195e62d996b84c9bcc8259d19a83786a2f59e0878cec84c811f669aa0")
+
+        // Reject malformed certificates and each malformed hash-tree node shape.
+        for malformed: CBOR in [.null, .map([:]), .map(["signature": .utf8String("bad"), "tree": .array([0])]), .map(["signature": .byteString(Data())])] {
+            #expect(throws: ICPStateCertificateError.invalidCertificateStructure) {
+                try ICPStateCertificate.parse(malformed)
+            }
+        }
+        for malformed: CBOR in [
+            .null, .array([]), .array([.utf8String("leaf")]), .array([9]),
+            .array([1]), .array([1, .array([0])]),
+            .array([2]), .array([2, .utf8String("label"), .array([0])]),
+            .array([3]), .array([3, .utf8String("value")]),
+            .array([4]), .array([4, .utf8String("hash")])
+        ] {
+            #expect(throws: ICPStateCertificateError.invalidCertificateStructure) {
+                try ICPStateCertificate.HashTreeNode.buildTree(from: malformed)
+            }
+        }
+
+        let path: ICPStateTreePath = ["a", .data(Data([0xff]))]
+        #expect(path.components.count == 2)
+        #expect(path.firstComponent?.stringValue == "a")
+        #expect(path.firstComponent?.dataValue == nil)
+        #expect(path.removingFirstComponent.firstComponent?.dataValue == Data([0xff]))
+        #expect(path.removingFirstComponent.firstComponent?.stringValue == nil)
+        #expect(path.encodedComponents() == [Data("a".utf8), Data([0xff])])
+        #expect(ICPStateTreePath("/").isEmpty)
+        #expect(certificate.getNode(for: ICPStateTreePath("/")) == certificate)
     }
     
-    func testCborPrunedParsing() throws {
+    @Test func cborPrunedParsing() throws {
 // from https://internetcomputer.org/docs/current/references/ic-interface-spec/#example
 // This tree represents the same state tree as in previous state,
 // some of the branches have been pruned but the hash of the tree is the same for both trees
@@ -75,7 +104,7 @@ final class ICPCertificateTests: XCTestCase {
         let cbor = try ICPCryptography.CBOR.deserialiseCbor(from: cborData)
         let certificate = try ICPStateCertificate.HashTreeNode.buildTree(from: cbor)
         
-        XCTAssertEqual(certificate, .fork(
+        #expect(certificate == .fork(
             left: .fork(
                 left: .labeled("a", .fork(
                     left: .pruned(.fromHex("1B4FEFF9BEF8131788B0C9DC6DBAD6E81E524249C879E9F10F71CE3749F5A638")!),
@@ -87,15 +116,15 @@ final class ICPCertificateTests: XCTestCase {
                 left: .pruned(.fromHex("EC8324B8A1F1AC16BD2E806EDBA78006479C9877FED4EB464A25485465AF601D")!),
                 right: .labeled("d", .leaf("morning".data)))))
         
-        XCTAssertEqual(certificate.getValue(for: "/a/x"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/a/y"), "world".data)
-        XCTAssertEqual(certificate.getValue(for: "/b"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/d"), "morning".data)
-        XCTAssertEqual(certificate.getValue(for: "/unknown_path"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/c"), nil)
-        XCTAssertEqual(certificate.getValue(for: "/a"), nil)
+        #expect(certificate.getValue(for: "/a/x") == nil)
+        #expect(certificate.getValue(for: "/a/y") == "world".data)
+        #expect(certificate.getValue(for: "/b") == nil)
+        #expect(certificate.getValue(for: "/d") == "morning".data)
+        #expect(certificate.getValue(for: "/unknown_path") == nil)
+        #expect(certificate.getValue(for: "/c") == nil)
+        #expect(certificate.getValue(for: "/a") == nil)
         
-        XCTAssertEqual(certificate.hash().hex, "eb5c5b2195e62d996b84c9bcc8259d19a83786a2f59e0878cec84c811f669aa0")
+        #expect(certificate.hash().hex == "eb5c5b2195e62d996b84c9bcc8259d19a83786a2f59e0878cec84c811f669aa0")
     }
 }
 

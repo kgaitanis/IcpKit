@@ -5,31 +5,39 @@
 //  Created by Konstantinos Gaitanis on 18.07.24.
 //
 
-import XCTest
+import Testing
 import BigInt
 import Candid
+import Foundation
 
-final class CandidEncoderTests: XCTestCase {
-    func testEncoding() throws {
+struct CandidEncoderTests {
+    @Test func encoding() throws {
         let vectors = commonTestVectors.map { ($0.0, $0.1) } + encodingTestVectors
         for (input, expected) in vectors {
             let encoded = try CandidEncoder().encode(input)
-            XCTAssertEqual(encoded, expected, String(describing: input))
+            #expect(encoded == expected, "\(String(describing: input))")
+        }
+        for (input, errorType) in failingEncodingTestVectors {
+            #expect {
+                try CandidEncoder().encode(input)
+            } throws: { error in
+                type(of: error) == errorType
+            }
         }
     }
     
-    func testDecoding() throws {
+    @Test func decoding() throws {
         let vectors = commonTestVectors + decodingTestVectors
         for (expected, input, type) in vectors {
             do {
                 let decoded = try CandidDecoder().decode(type, from: input)
-                XCTAssertEqual(String(describing: decoded), String(describing: expected), "\(input) decoded to \(decoded) but was expecting \(expected)")
+                #expect(String(describing: decoded) == String(describing: expected), "\(input) decoded to \(decoded) but was expecting \(expected)")
             } catch (let error) {
-                XCTFail("\(input) failed to decode to \(expected). Error: \(error)")
+                Issue.record("\(input) failed to decode to \(expected). Error: \(error)")
             }
         }
         for (input, failingType, reason) in failingDecodingTestVectors {
-            XCTAssertThrowsError(try CandidDecoder().decode(failingType, from: input), reason)
+            #expect(throws: DecodingError.self, "\(reason)", performing: { try CandidDecoder().decode(failingType, from: input) })
         }
     }
 }
@@ -153,7 +161,140 @@ nonisolated(unsafe) private let encodingTestVectors: [(any Encodable, CandidValu
     (CandidFunction(signature: .init([CandidType](), []), method: nil), .function(CandidFunction(signature: .init([CandidType](), []), method: nil))),
     (CandidService(principal: nil, signature: .init([])), .service(CandidService(principal: nil, signature: .init([])))),
     (["b": UInt8(8), "a": 0], .record(["a": .natural8(0), "b": .natural8(8)])),
+    (TestEnum.b(nil), .variant(.init("b", .option(.natural8)))),
+    (TestEnum.e(a: nil, b: 2), .variant(.init("e", .record(["a": .option(.natural8), "b": .natural16(2)])))),
+    (TestEnum.h(a: nil), .variant(.init("h", .record(["a": .option(.natural8)])))),
+
+    // Explicit overloads: Array's generic encoding does not exercise these.
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(true)
+    }, try! .vector([.bool(true)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode("text")
+    }, try! .vector([.text("text")])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Float(1.5))
+    }, try! .vector([.float32(1.5)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Double(1.5))
+    }, try! .vector([.float64(1.5)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Int(-5))
+    }, try! .vector([.integer64(-5)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Int8(-1))
+    }, try! .vector([.integer8(-1)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Int16(-2))
+    }, try! .vector([.integer16(-2)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Int32(-3))
+    }, try! .vector([.integer32(-3)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(Int64(-4))
+    }, try! .vector([.integer64(-4)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(UInt(5))
+    }, try! .vector([.natural64(5)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(UInt8(1))
+    }, try! .vector([.natural8(1)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(UInt16(2))
+    }, try! .vector([.natural16(2)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(UInt32(3))
+    }, try! .vector([.natural32(3)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        try container.encode(UInt64(4))
+    }, try! .vector([.natural64(4)])),
+    (CustomEncoding { encoder in
+        var container = encoder.singleValueContainer()
+        try container.encode(TestRecord(a: 1, b: 2))
+    }, .record(["a": .natural8(1), "b": .integer64(2)])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        var nested = container.nestedContainer(keyedBy: TestRecordKey.self)
+        try nested.encode(UInt8(1), forKey: .a)
+    }, try! .vector([.record(["a": .natural8(1)])])),
+    (CustomEncoding { encoder in
+        var container = encoder.unkeyedContainer()
+        var nested = container.nestedUnkeyedContainer()
+        try nested.encode(UInt8(1))
+    }, try! .vector([.vector([.natural8(1)])])),
+    (CustomEncoding { encoder in
+        var container = encoder.container(keyedBy: TestRecordKey.self)
+        var nested = container.nestedUnkeyedContainer(forKey: .a)
+        try nested.encode(UInt8(1))
+    }, .record(["a": try! .vector([.natural8(1)])])),
 ]
+
+nonisolated(unsafe) private let failingEncodingTestVectors: [(any Encodable, any Error.Type)] = [
+    (TestRawEnum.a, EncodingError.self),
+    (TestMalformedEnum.empty, CandidEncoderError.self),
+    (TestMalformedEnum.multiple, CandidEncoderError.self),
+    (TestMalformedEnum.nonRecord, CandidEncoderError.self),
+]
+
+private enum TestRawEnum: String, Encodable {
+    case a
+}
+
+// Enum encoding requires exactly one case key containing an associated-value record.
+private enum TestMalformedEnum: Encodable {
+    case empty
+    case multiple
+    case nonRecord
+
+    private enum CodingKeys: String, CodingKey {
+        case a
+        case b
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .empty:
+            break
+        case .multiple:
+            _ = container.nestedContainer(keyedBy: CodingKeys.self, forKey: .a)
+            _ = container.nestedContainer(keyedBy: CodingKeys.self, forKey: .b)
+        case .nonRecord:
+            try container.encode(true, forKey: .a)
+        }
+    }
+}
+
+// Allows explicit container operations to use the same input/expected-value list.
+private struct CustomEncoding: Encodable {
+    let encodeValue: (any Encoder) throws -> Void
+
+    init(_ encodeValue: @escaping (any Encoder) throws -> Void) {
+        self.encodeValue = encodeValue
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        try encodeValue(encoder)
+    }
+}
+
+private enum TestRecordKey: String, CodingKey {
+    case a
+}
 
 private struct TestRecord: Codable {
     let a: UInt8
@@ -222,15 +363,15 @@ private indirect enum TestEnum: Codable {
     }
 }
 
-struct SingleValueRecord: Codable {
+private struct SingleValueRecord: Codable {
     let value: Int8
 }
 
-struct PassThroughCandidValue: Codable {
+private struct PassThroughCandidValue: Codable {
     let candid: CandidValue
 }
 
-struct TestFunction: CandidFunctionProtocol {
+private struct TestFunction: CandidFunctionProtocol {
     let canister: Candid.CandidPrincipal
     let methodName: String
     let isQuery: Bool = true
@@ -241,7 +382,7 @@ struct TestFunction: CandidFunctionProtocol {
     }
 }
 
-struct TestService: CandidServiceProtocol {
+private struct TestService: CandidServiceProtocol {
     let principal: CandidPrincipal
     
     init(_ principal: CandidPrincipal) {
