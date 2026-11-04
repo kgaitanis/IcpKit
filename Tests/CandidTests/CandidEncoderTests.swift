@@ -11,6 +11,10 @@ import Candid
 import Foundation
 
 struct CandidEncoderTests {
+    @Test func keyedPrimitiveOverloadsPreserveTypesAndValues() throws {
+        #expect(try CandidEncoder().encode(KeyedPrimitiveRecord()) == KeyedPrimitiveRecord.candidValue)
+    }
+
     @Test func encoding() throws {
         let vectors = commonTestVectors.map { ($0.0, $0.1) } + encodingTestVectors
         for (input, expected) in vectors {
@@ -387,5 +391,82 @@ private struct TestService: CandidServiceProtocol {
     
     init(_ principal: CandidPrincipal) {
         self.principal = principal
+    }
+}
+
+// Shared by encoder and decoder tests so their primitive fixture stays consistent.
+struct KeyedPrimitiveRecord: Codable {
+    static let candidValue: CandidValue = .record([
+        "bool": .bool(true),
+        "text": .text("hello"),
+        "float": .float32(1.5),
+        "double": .float64(-2.5),
+        "int": .integer64(-42),
+        "int8": .integer8(.min),
+        "int16": .integer16(.min),
+        "int32": .integer32(.min),
+        "int64": .integer64(.min),
+        "uint": .natural64(42),
+        "uint8": .natural8(.max),
+        "uint16": .natural16(.max),
+        "uint32": .natural32(.max),
+        "uint64": .natural64(.max)
+    ])
+
+    var bool: Bool = true
+    var text: String = "hello"
+    var float: Float = 1.5
+    var double: Double = -2.5
+    var int: Int = -42
+    var int8: Int8 = .min
+    var int16: Int16 = .min
+    var int32: Int32 = .min
+    var int64: Int64 = .min
+    var uint: UInt = 42
+    var uint8: UInt8 = .max
+    var uint16: UInt16 = .max
+    var uint32: UInt32 = .max
+    var uint64: UInt64 = .max
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case bool, text, float, double, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(bool, forKey: .bool)
+        try container.encode(text, forKey: .text)
+        try container.encode(float, forKey: .float)
+        try container.encode(double, forKey: .double)
+        try container.encode(int, forKey: .int)
+        try container.encode(int8, forKey: .int8)
+        try container.encode(int16, forKey: .int16)
+        try container.encode(int32, forKey: .int32)
+        try container.encode(int64, forKey: .int64)
+        try container.encode(uint, forKey: .uint)
+        try container.encode(uint8, forKey: .uint8)
+        try container.encode(uint16, forKey: .uint16)
+        try container.encode(uint32, forKey: .uint32)
+        try container.encode(uint64, forKey: .uint64)
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bool = try container.decode(Bool.self, forKey: .bool)
+        text = try container.decode(String.self, forKey: .text)
+        float = try container.decode(Float.self, forKey: .float)
+        double = try container.decode(Double.self, forKey: .double)
+        int = try container.decode(Int.self, forKey: .int)
+        int8 = try container.decode(Int8.self, forKey: .int8)
+        int16 = try container.decode(Int16.self, forKey: .int16)
+        int32 = try container.decode(Int32.self, forKey: .int32)
+        int64 = try container.decode(Int64.self, forKey: .int64)
+        uint = try container.decode(UInt.self, forKey: .uint)
+        uint8 = try container.decode(UInt8.self, forKey: .uint8)
+        uint16 = try container.decode(UInt16.self, forKey: .uint16)
+        uint32 = try container.decode(UInt32.self, forKey: .uint32)
+        uint64 = try container.decode(UInt64.self, forKey: .uint64)
     }
 }

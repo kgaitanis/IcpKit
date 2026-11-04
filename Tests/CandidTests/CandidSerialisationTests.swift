@@ -69,6 +69,34 @@ struct CandidSerialisationTests {
         
         #expect(throws: Never.self) { try deserialiser.decode(candidData) }
     }
+
+    @Test func recursiveFunctionTypeTableIsAccepted() throws {
+        // A function takes itself as an argument; there are no top-level values.
+        let bytes = Data([0x44, 0x49, 0x44, 0x4c, 1, 0x6a, 1, 0, 0, 0, 0])
+        #expect(try CandidDeserialiser().decode(bytes).isEmpty)
+    }
+
+    @Test func recursiveServiceMethodReferenceIsRejected() {
+        // The service and its method form a cycle that cannot resolve to a concrete signature.
+        let bytes = Data([0x44, 0x49, 0x44, 0x4c, 2, 0x69, 1, 1, 0x66, 1, 0x6a, 1, 0, 0, 0, 0])
+        #expect {
+            try CandidDeserialiser().decode(bytes)
+        } throws: { error in
+            guard case CandidDeserialisationError.invalidTypeReference = error else { return false }
+            return true
+        }
+    }
+
+    @Test func invalidContainedTypeReference() {
+        // One vector type refers to absent type-table entry 1.
+        let bytes = Data([0x44, 0x49, 0x44, 0x4c, 1, 0x6d, 1, 0])
+        #expect {
+            try CandidDeserialiser().decode(bytes)
+        } throws: { error in
+            guard case CandidDeserialisationError.invalidTypeReference = error else { return false }
+            return true
+        }
+    }
 }
 
 struct CandidSerialisationValidationTests {

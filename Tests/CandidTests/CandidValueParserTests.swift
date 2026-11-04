@@ -58,6 +58,47 @@ struct CandidValueParserTests {
             "providerId": .natural64(21),
         ]))
     }
+
+    @Test func streamMarkersAndCurrentIdentifier() throws {
+        let stream = try CandidParserStream(string: "first second")
+        #expect(stream.originalStringSinceLastMarker() == "")
+        #expect(try stream.takeNext() == .word("first"))
+        #expect(try stream.expectCurrentId() == "first")
+        #expect(stream.originalStringSinceLastMarker() == "first ")
+        #expect(throws: CandidParserError.self) { try stream.peekSecondNext() }
+        #expect(try stream.takeNext() == .word("second"))
+    }
+
+    @Test func wordReaderRejectsPunctuation() throws {
+        let stream = try CandidParserStream(string: "{")
+        #expect {
+            try stream.expectNextWord()
+        } throws: { error in
+            guard case CandidParserError.expecting("<word>", butGot: "{") = error else { return false }
+            return true
+        }
+    }
+
+    @Test func commentSyntaxPreservesDelimiters() {
+        #expect(CandidParserToken.comment(" hello", multiline: false).syntax == "// hello\n")
+        #expect(CandidParserToken.comment(" hello ", multiline: true).syntax == "/* hello */")
+    }
+
+    @Test func unexpectedInterfaceToken() async {
+        await #expect(throws: CandidParserError.self) {
+            try await CandidParser().parseInterfaceDescription("record {}")
+        }
+    }
+
+    @Test func numericRecordLabelsAreNotHashed() throws {
+        let parsed = try CandidParser().parseValue("record { 42 = true }")
+        #expect(parsed == .record([42: .bool(true)]))
+    }
+
+    @Test(arguments: ["}", "0x1.0p999999999999999999999999999999"])
+    func invalidValuesAreRejected(input: String) {
+        #expect(throws: CandidParserError.self) { try CandidParser().parseValue(input) }
+    }
 }
 
 struct CandidValueParserValidationTests {

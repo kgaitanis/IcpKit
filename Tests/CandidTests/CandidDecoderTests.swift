@@ -1,8 +1,46 @@
 import Foundation
 import Testing
-import Candid
+@testable import Candid
 
 struct CandidDecoderTests {
+    @Test func keyedPrimitiveOverloadsPreserveTypesAndValues() throws {
+        let decoded = try CandidDecoder().decode(KeyedPrimitiveRecord.self, from: KeyedPrimitiveRecord.candidValue)
+        #expect(decoded.bool == Bool(true))
+        #expect(decoded.text == String("hello"))
+        #expect(decoded.float == Float(1.5))
+        #expect(decoded.double == Double(-2.5))
+        #expect(decoded.int == Int(-42))
+        #expect(decoded.int8 == Int8.min)
+        #expect(decoded.int16 == Int16.min)
+        #expect(decoded.int32 == Int32.min)
+        #expect(decoded.int64 == Int64.min)
+        #expect(decoded.uint == UInt(42))
+        #expect(decoded.uint8 == UInt8.max)
+        #expect(decoded.uint16 == UInt16.max)
+        #expect(decoded.uint32 == UInt32.max)
+        #expect(decoded.uint64 == UInt64.max)
+    }
+
+    @Test func unkeyedUIntUsesNaturalAndAdvances() throws {
+        let decoded = try CandidDecoder().decode(NaturalElement.self, from: .vector([.natural(42)]))
+        #expect(decoded.value == 42)
+    }
+
+    @Test func missingNestedRecordReportsKeyAndPath() {
+        #expect {
+            try CandidDecoder().decode(NestedRecord.self, from: .record())
+        } throws: { error in
+            guard case DecodingError.keyNotFound(let key, let context) = error else { return false }
+            return key.stringValue == "value" && context.codingPath.isEmpty
+        }
+    }
+
+    @Test func codingKeysRejectUnknownRepresentations() {
+        #expect(IntCodingKey(stringValue: "12") == nil)
+        #expect(Field(intValue: -1) == nil)
+        #expect(Field(intValue: CandidKey.candidHash("value")) == .value)
+    }
+
     @Test func explicitPrimitiveContainersPreserveValues() throws {
         // Explicit overloads catch wiring errors that Array's generic decode does not exercise.
         let input: CandidValue = .record([
@@ -129,7 +167,7 @@ struct CandidDecoderTests {
     }
 }
 
-private enum Field: String, CodingKey {
+private enum Field: String, CandidCodingKey {
     case value
 }
 
@@ -257,5 +295,23 @@ private struct PrimitiveVectors: Decodable {
         var uint64Values = try container.nestedUnkeyedContainer(forKey: .uint64)
         uint64 = try uint64Values.decode(UInt64.self)
         #expect(uint64Values.isAtEnd)
+    }
+}
+
+private struct NestedRecord: Decodable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: Field.self)
+        _ = try container.nestedContainer(keyedBy: Field.self, forKey: .value)
+    }
+}
+
+private struct NaturalElement: Decodable {
+    let value: UInt
+
+    init(from decoder: any Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        value = try container.decode(UInt.self)
+        #expect(container.currentIndex == 1)
+        #expect(container.isAtEnd)
     }
 }
