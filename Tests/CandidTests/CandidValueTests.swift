@@ -33,6 +33,97 @@ struct CandidValueTests {
         #expect(try CandidParser().parseSingleType(syntax) == type)
     }
 
+    @Test func functionSyntaxPreservesParametersAndNames() throws {
+        let signature = CandidFunctionSignature(
+            [("owner", CandidType.principal), (nil, .option(.natural))],
+            [("balance", CandidType.natural), (nil, .text)],
+            query: true
+        )
+        let type = CandidType.function(signature)
+        #expect(type.syntax == "func (owner: principal, opt nat) -> (balance: nat, text) query")
+        let parsed = try CandidParser().parseSingleType(type.syntax)
+        #expect(parsed == type)
+        guard case .function(let result) = parsed else {
+            Issue.record("Expected function")
+            return
+        }
+        // Parameter equality ignores names, so verify them separately.
+        #expect(result.arguments.map(\.name) == ["owner", nil])
+        #expect(result.results.map(\.name) == ["balance", nil])
+    }
+
+    @Test(arguments: ["", "query", "oneway", "composite_query"])
+    func functionAndServiceSyntaxPreserveAnnotations(_ annotation: String) throws {
+        let signature = CandidFunctionSignature(
+            [CandidType.text], [CandidType](),
+            query: annotation == "query",
+            oneWay: annotation == "oneway",
+            compositeQuery: annotation == "composite_query"
+        )
+        let suffix = annotation.isEmpty ? "" : " " + annotation
+        let function = CandidType.function(signature)
+        let service = CandidType.service(CandidServiceSignature([
+            .init(name: "notify", functionSignature: signature)
+        ]))
+        #expect(function.syntax == "func (text) -> ()" + suffix)
+        #expect(service.syntax == "service { notify: (text) -> ()" + suffix + "; }")
+        #expect(try CandidParser().parseSingleType(function.syntax) == function)
+        #expect(try CandidParser().parseSingleType(service.syntax) == service)
+    }
+
+    @Test func serviceSyntaxPreservesMultipleMethodsAndReferences() throws {
+        let type = CandidType.service(CandidServiceSignature([
+            .init("balance", [.principal], [.natural], query: true),
+            .init("transfer", [.principal, .natural], [.bool]),
+            .init(name: "callback", signatureReference: "Callback")
+        ]))
+        #expect(type.syntax == "service { balance: (principal) -> (nat) query; transfer: (principal, nat) -> (bool); callback: Callback; }")
+        #expect(try CandidParser().parseSingleType(type.syntax) == type)
+    }
+
+    @Test func serviceSyntaxPreservesNestedFunctionAndServiceTypes() throws {
+        let callback = CandidType.function(CandidFunctionSignature([CandidType.text], [.bool], query: true))
+        let child = CandidType.service(CandidServiceSignature([.init("ping", [CandidType](), [])]))
+        let type = CandidType.service(CandidServiceSignature([
+            .init("register", [callback], [child])
+        ]))
+        #expect(type.syntax == "service { register: (func (text) -> (bool) query) -> (service { ping: () -> (); }); }")
+        #expect(try CandidParser().parseSingleType(type.syntax) == type)
+    }
+
+    @Test func serviceSyntaxQuotesKeywordNames() throws {
+        let signature = CandidFunctionSignature(
+            [("type", CandidType.text)], [("true", CandidType.bool)]
+        )
+        let type = CandidType.service(CandidServiceSignature([
+            .init(name: "query", functionSignature: signature)
+        ]))
+        #expect(type.syntax == #"service { "query": ("type": text) -> ("true": bool); }"#)
+        #expect(try CandidParser().parseSingleType(type.syntax) == type)
+    }
+
+    @Test func serviceSyntaxEscapesSpecialCharactersInNames() {
+        let signature = CandidFunctionSignature([CandidType](), [])
+        let type = CandidType.service(CandidServiceSignature([
+            .init(name: "notify\n", functionSignature: signature),
+            .init(name: "quote\"slash\\", functionSignature: signature)
+        ]))
+        #expect(type.syntax == #"service { "notify\n": () -> (); "quote\"slash\\": () -> (); }"#)
+    }
+
+    @Test func serviceSyntaxQuotesMethodAndParameterNames() throws {
+        let signature = CandidFunctionSignature(
+            [("account owner", CandidType.principal)],
+            [("token balance", CandidType.natural)],
+            query: true
+        )
+        let type = CandidType.service(CandidServiceSignature([
+            .init(name: "get balance", functionSignature: signature)
+        ]))
+        #expect(type.syntax == #"service { "get balance": ("account owner": principal) -> ("token balance": nat) query; }"#)
+        #expect(try CandidParser().parseSingleType(type.syntax) == type)
+    }
+
     @Test func serviceTypeAndCanisterDeclarationUseDifferentColonSyntax() async throws {
         let parser = CandidParser()
         #expect(try parser.parseSingleType("service {}") == .service())

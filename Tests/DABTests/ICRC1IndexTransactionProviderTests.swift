@@ -189,7 +189,7 @@ struct ICRC1IndexTransactionProviderTests {
             "transactions": .vector(try CandidVector(itemType, transactions.map(wireTransaction)))
         ])
         let result = CandidValue.variant(.init("Ok", history))
-        return DABMockResponses.client(queries: ["get_account_transactions": try CandidSerialiser().encode([result])])
+        return DABMockResponses.client(queries: ["get_account_transactions": CandidSerialiser().encode([result])])
     }
 
     private func transaction(_ id: BigUInt, burn: Index.Burn? = nil, approve: Index.Approve? = nil,

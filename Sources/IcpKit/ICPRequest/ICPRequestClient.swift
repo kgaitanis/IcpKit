@@ -301,11 +301,7 @@ public final class ICPRequestClient: Sendable {
         let candidResponse = try CandidDeserialiser().decode(candidRaw)
         return candidResponse
     }
-    
-    private func parseCallResponse(_ data: Data) throws -> CandidValue {
-        return .null
-    }
-    
+
     private func parseReadStateResponse(_ data: Data, _ paths: [ICPStateTreePath], rootKey: Data?) throws -> ICPReadStateResponse {
         let readStateResponse = try ICPCryptography.CBOR.deserialise(ReadStateResponseDecodable.self, from: data)
         let certificateCbor = try ICPCryptography.CBOR.deserialiseCbor(from: readStateResponse.certificate)

@@ -19,16 +19,6 @@ public extension BinaryInteger {
     }
 }
 
-public extension BigUInt {
-    var bytes: Data {
-        Data(words.map { $0.bytes }.joined())
-    }
-    
-    var bigEndianBytes: Data {
-        Data(words.map { $0.bytes.reversed() }.reversed().joined())
-    }
-}
-
 public extension FixedWidthInteger {
     /// Big-endian = Most significant byte first
     var bigEndianBytes: Data {
