@@ -137,7 +137,7 @@ struct ICPTokenTests {
 
     @Test(arguments: [false, true])
     func initializerPreservesFields(withLogo: Bool) throws {
-        let logo = withLogo ? try #require(URL(string: "https://example.com/token.png")) : nil
+        let logo = withLogo ? URL(string: "https://example.com/token.png") : nil
         let token = ICPToken(standard: .icrc1, canister: canister, name: "Test Token",
                              decimals: 8, symbol: "TST", verified: false, logo: logo)
 
@@ -152,7 +152,7 @@ struct ICPTokenTests {
 
     @Test(arguments: [false, true])
     func metadataInitializerMapsFieldsAndDefaultsToVerified(withLogo: Bool) throws {
-        let logo = withLogo ? try #require(URL(string: "https://example.com/metadata.png")) : nil
+        let logo = withLogo ? URL(string: "https://example.com/metadata.png") : nil
         let metadata = ICPTokenMetadata(name: "Metadata Token", symbol: "META", decimals: 6,
                                         totalSupply: 1_000_000, logo: logo, fee: 10)
         let token = ICPToken(standard: .dip20, canister: canister, metadata: metadata)

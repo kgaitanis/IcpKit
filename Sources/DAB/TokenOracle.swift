@@ -8,7 +8,7 @@
 import Foundation
 import IcpKit
 
-public final class TokenOracle: @unchecked Sendable {
+public final class TokenOracle: TokenService, @unchecked Sendable {
     private let client: ICPRequestClient
     private let service: ICRC1Oracle.Service
     private let transactionProvider: ICPTransactionProvider
@@ -21,21 +21,8 @@ public final class TokenOracle: @unchecked Sendable {
         service = ICRC1Oracle.Service(DABService.icrc1Oracle, client: client)
     }
     
-    public func tokenStandard(for canister: ICPPrincipal) async throws -> ICPTokenStandard? {
-        try await allTokens().first(where: { $0.canister == canister })?.standard
-    }
-    
     public func `actor`(for standard: ICPTokenStandard, _ canister: ICPPrincipal) -> ICPTokenActor? {
         ICPTokenActorFactory.actor(for: standard, canister, client)
-    }
-    
-    public func `actor`(for canister: ICPPrincipal) async throws -> ICPTokenActor? {
-        guard let standard = try await tokenStandard(for: canister) else { return nil }
-        return ICPTokenActorFactory.actor(for: standard, canister, client)
-    }
-    
-    public func `actor`(for token: ICPToken) -> ICPTokenActor? {
-        ICPTokenActorFactory.actor(for: token, client)
     }
     
     public func token(for canister: ICPPrincipal) -> ICPToken? {
@@ -48,23 +35,6 @@ public final class TokenOracle: @unchecked Sendable {
         }
         cachedCanisters = try await fetchAllIcrc1Canisters()
         return cachedCanisters!.compactMap { try? ICPToken($0) }
-    }
-    
-    public func balance(of user: ICPAccount) async throws -> [ICPTokenBalance] {
-        let tokens = try await allTokens()
-        let holdings = await tokens.compactMapParallel { token in
-            guard let actor = ICPTokenActorFactory.actor(for: token.standard, token.canister, self.client),
-                  let balance = try? await actor.balance(of: user),
-                  balance > .zero else {
-                return ICPTokenBalance?.none
-            }
-            return ICPTokenBalance(token: token, balance: balance)
-        }
-        return holdings
-    }
-    
-    public func transactions(of user: ICPAccount, for token: ICPToken) async throws -> [ICPTokenTransaction] {
-        return try await transactions(of: user, for: token.canister)
     }
     
     public func transactions(of user: ICPAccount, for tokenCanister: ICPPrincipal) async throws -> [ICPTokenTransaction] {
