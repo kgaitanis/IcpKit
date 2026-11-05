@@ -19,7 +19,7 @@ class IcpViewModel: ObservableObject {
     
     init() throws {
         signingPrincipal = try SimplePrincipal.fromMnemonic(AccountKeys.mnemonic)
-        account = try ICPAccount.mainAccount(of: signingPrincipal.principal)
+        account = ICPAccount.mainAccount(of: signingPrincipal.principal)
     }
     
     @MainActor

@@ -9,7 +9,7 @@ import Foundation
 import IcpKit
 import HdWalletKit
 
-class SimplePrincipal: ICPSigningPrincipal {
+final class SimplePrincipal: ICPSigningPrincipal {
     let principal: ICPPrincipal
     let rawPublicKey: Data
     private let privateKey: Data

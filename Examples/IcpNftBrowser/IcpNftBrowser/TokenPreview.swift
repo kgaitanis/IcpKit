@@ -15,7 +15,7 @@ struct TokenPreview: View {
         Card(
             image: token.logo,
             title: token.name,
-            description: token.description,
+            description: nil,
             tag: token.standard.description
         )
     }

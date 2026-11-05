@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = try! IcpViewModel()
+    @State private var queryError: String?
     
     var body: some View {
         VStack {
@@ -24,11 +25,19 @@ struct ContentView: View {
                 if let block = viewModel.transactionBlock { Text(String(block)) }
             Divider()
                 Button("Query Balance") {
-                    Task.detached { try await viewModel.queryBalance() }
+                    Task { @MainActor in
+                        queryError = nil
+                        do {
+                            try await viewModel.queryBalance()
+                        } catch {
+                            queryError = error.localizedDescription
+                        }
+                    }
                 }.buttonStyle(.bordered)
-                Button("Transfer") {
-                    Task.detached { try await viewModel.send() }
-                }.buttonStyle(.bordered)
+            if let queryError {
+                Text(queryError)
+                    .foregroundStyle(.red)
+            }
         }
         .padding()
     }

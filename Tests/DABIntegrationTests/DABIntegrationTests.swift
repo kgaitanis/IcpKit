@@ -1,6 +1,7 @@
 import Foundation
 import Testing
-import IcpKit
+import Candid
+@testable import IcpKit
 @testable import DAB
 
 /// Read-only mainnet compatibility checks. Run with the IcpKit-Integration scheme.
@@ -80,5 +81,120 @@ struct DABIntegrationTests {
         #expect(response.chain_length > 0)
         try #require(response.blocks.count == 1, "ICP index did not return the requested genesis block")
         #expect(!response.blocks[0].isEmpty, "ICP index returned an empty encoded block")
+    }
+
+    @Test func icpLedgerAccountBalanceDecodesWithoutRequiringFunds() async throws {
+        let client = ICPRequestClient(ReadOnlyIntegrationHttpClient())
+        let account = ICPAccount.mainAccount(of: try ICPPrincipal("2vxsx-fae"))
+        // Any UInt64 balance, including zero, is valid. Successful decoding is the contract;
+        // comparing two requests or requiring funds would depend on mutable account state.
+        _ = try await ICPLedgerCanister.accountBalance(of: account, client)
+    }
+
+    @Test func icpReadStateReturnsCertifiedTime() async throws {
+        let client = ICPRequestClient(ReadOnlyIntegrationHttpClient())
+        let started = Date.now
+        // The default mainnet root key keeps certificate signature verification enabled.
+        let response = try await client.readState(paths: ["time"], effectiveCanister: ICPSystemCanisters.ledger)
+        let finished = Date.now
+        let encodedTime = try #require(response.rawValueForPath(endingWith: "time"))
+        let nanoseconds: UInt64 = try Leb128.decodeUnsigned(encodedTime)
+        let certifiedTime = Date(timeIntervalSince1970: Double(nanoseconds) / 1_000_000_000)
+        // Allow certificate caching and modest clock skew; include the whole request/retry
+        // interval instead of requiring a response less than ten seconds old at completion.
+        #expect(certifiedTime >= started.addingTimeInterval(-300), "Certified time is stale")
+        #expect(certifiedTime <= finished.addingTimeInterval(300), "Certified time is in the future")
+    }
+
+    @Test func icpLedgerQueryBlockReturnsHistoricalTransfer() async throws {
+        let client = ICPRequestClient(ReadOnlyIntegrationHttpClient())
+        // Historical block contents are immutable, even when moved to an archive canister.
+        let block = try await ICPLedgerCanister.queryBlock(index: 13309698, client)
+        #expect(block.timestamp == 1723103842536019792)
+        #expect(block.transaction.createdNanos == 1723103842536019792)
+        #expect(block.transaction.memo == 0)
+        #expect(block.parentHash == Data.fromHex("7f944c23b83cc7d5457b6503f95430cb751f8cfe561374470e672c70fb850342"))
+        guard case .transfer(let from, let to, let amount, let fee, _) = block.transaction.operation else {
+            Issue.record("Historical ledger block is not a transfer")
+            return
+        }
+        #expect(from == Data.fromHex("07537100d2fb357209a2283d6c5cb588ef7ee09db32fb7cc6f6241e44b155e4c"))
+        #expect(to == Data.fromHex("57271f92125bdfd4fe0605f2e22c3ad549fc27cf2e85bae080645a5b516154ec"))
+        #expect(amount == 190612587)
+        #expect(fee == 10000)
+    }
+
+    @Test func icpGeneratedLedgerResolvesHistoricalBlockRange() async throws {
+        let client = ICPRequestClient(ReadOnlyIntegrationHttpClient())
+        let ledger = LedgerCanister.Service(ICPSystemCanisters.ledger, client: client)
+        let start: UInt64 = 11268933
+        let length: UInt64 = 3
+        let end = start + length
+        let response = try await ledger.query_blocks(.init(start: start, length: length))
+        #expect(response.chain_length >= end)
+        var returnedIndices = Set<UInt64>()
+
+        // Accept direct blocks, archive callbacks, or a mixture as archival boundaries move.
+        if !response.blocks.isEmpty {
+            try #require(response.first_block_index >= start && response.first_block_index < end)
+            try #require(UInt64(response.blocks.count) <= end - response.first_block_index)
+            for (offset, block) in response.blocks.enumerated() {
+                #expect(returnedIndices.insert(response.first_block_index + UInt64(offset)).inserted)
+                #expect(block.timestamp.timestamp_nanos > 0)
+                #expect(block.parent_hash?.count == 32)
+            }
+        }
+        for archive in response.archived_blocks {
+            try #require(archive.start >= start && archive.start < end)
+            try #require(archive.length > 0 && archive.length <= end - archive.start)
+            let result = try await archive.callback.callMethod(
+                .init(start: archive.start, length: archive.length), client)
+            guard case .Ok(let range) = result else {
+                Issue.record("Ledger archive rejected a known historical range")
+                return
+            }
+            try #require(UInt64(range.blocks.count) == archive.length,
+                         "Archive did not return the requested historical blocks")
+            for (offset, block) in range.blocks.enumerated() {
+                #expect(returnedIndices.insert(archive.start + UInt64(offset)).inserted,
+                        "Ledger returned overlapping block ranges")
+                #expect(block.timestamp.timestamp_nanos > 0)
+                #expect(block.parent_hash?.count == 32)
+            }
+        }
+        #expect(returnedIndices == Set(start..<end), "Ledger response has missing historical blocks")
+    }
+}
+
+// Only the migrated read-only checks use this transport. Never retry an update submission.
+private final class ReadOnlyIntegrationHttpClient: HttpClient {
+    private let client = UrlSessionHttpClient()
+
+    func fetch(_ request: HttpRequest) async throws -> HttpResponse {
+        guard ["query", "read_state"].contains(request.url.lastPathComponent) else {
+            throw URLError(.unsupportedURL)
+        }
+        let boundedRequest = HttpRequest(method: request.method, url: request.url, body: request.body,
+                                         headers: request.headers, timeout: min(request.timeout, 10))
+        var attempt = 0
+        while true {
+            try Task.checkCancellation()
+            attempt += 1
+            do {
+                let response = try await client.fetch(boundedRequest)
+                // Return the final failure so ICPRequestClient reports its status and body.
+                guard attempt < 3, [408, 429, 502, 503, 504].contains(response.statusCode) else {
+                    return response
+                }
+            } catch let error as URLError {
+                guard attempt < 3,
+                      [.timedOut, .networkConnectionLost, .cannotConnectToHost,
+                       .cannotFindHost, .dnsLookupFailed].contains(error.code) else {
+                    throw error
+                }
+            }
+            // Cancellation, certificate errors, Candid errors and assertions are never retried.
+            try await Task.sleep(for: .seconds(attempt))
+        }
     }
 }

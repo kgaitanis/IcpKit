@@ -3,14 +3,13 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		0A1555B72C6B9168005D599C /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A1555B62C6B9168005D599C /* IcpKit */; };
 		0A1555BA2C6B91B9005D599C /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A1555B92C6B91B9005D599C /* IcpKit */; };
 		0A6BA27D2C46B5FC0015461A /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6BA27C2C46B5FC0015461A /* IcpKit */; };
-		0A6BA2862C46FA450015461A /* AppIcpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A6BA2852C46FA450015461A /* AppIcpTests.swift */; };
 		0A897BAA2B0CBDAA009F2468 /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A897BA92B0CBDAA009F2468 /* IcpKit */; };
 		0A897BAD2B0CBE35009F2468 /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A897BAC2B0CBE35009F2468 /* IcpKit */; };
 		0AC051432C6B94C60083C052 /* IcpKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AC051422C6B94C60083C052 /* IcpKit */; };
@@ -35,7 +34,6 @@
 
 /* Begin PBXFileReference section */
 		0A6BA2832C46FA450015461A /* AppIcpTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppIcpTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		0A6BA2852C46FA450015461A /* AppIcpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcpTests.swift; sourceTree = "<group>"; };
 		0AF01C2C2B0BE28200242C4E /* AppIcp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppIcp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AF01C2F2B0BE28200242C4E /* AppIcpApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcpApp.swift; sourceTree = "<group>"; };
 		0AF01C312B0BE28200242C4E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -71,19 +69,10 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0A6BA2842C46FA450015461A /* AppIcpTests */ = {
-			isa = PBXGroup;
-			children = (
-				0A6BA2852C46FA450015461A /* AppIcpTests.swift */,
-			);
-			path = AppIcpTests;
-			sourceTree = "<group>";
-		};
 		0AF01C232B0BE28200242C4E = {
 			isa = PBXGroup;
 			children = (
 				0AF01C2E2B0BE28200242C4E /* AppIcp */,
-				0A6BA2842C46FA450015461A /* AppIcpTests */,
 				0AF01C2D2B0BE28200242C4E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -174,7 +163,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1520;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					0A6BA2822C46FA450015461A = {
 						CreatedOnToolsVersion = 15.2;
@@ -196,7 +185,7 @@
 			mainGroup = 0AF01C232B0BE28200242C4E;
 			packageReferences = (
 				0AF01C472B0C9E6100242C4E /* XCRemoteSwiftPackageReference "HdWalletKit.Swift" */,
-				0AC051412C6B94C60083C052 /* XCLocalSwiftPackageReference "../.." */,
+				0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */,
 			);
 			productRefGroup = 0AF01C2D2B0BE28200242C4E /* Products */;
 			projectDirPath = "";
@@ -230,7 +219,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0A6BA2862C46FA450015461A /* AppIcpTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,7 +251,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AR9889QTFK;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
@@ -283,7 +270,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AR9889QTFK;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
@@ -332,7 +318,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = AR9889QTFK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -354,6 +342,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -393,7 +382,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = AR9889QTFK;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -408,6 +399,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -420,7 +412,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppIcp/AppIcp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AR9889QTFK;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -437,7 +429,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bity.wallet.AppIcp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -458,7 +450,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppIcp/AppIcp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AR9889QTFK;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -475,7 +467,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bity.wallet.AppIcp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -520,14 +512,15 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		0AC051412C6B94C60083C052 /* XCLocalSwiftPackageReference "../.." */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../..;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kgaitanis/IcpKit.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		0AF01C472B0C9E6100242C4E /* XCRemoteSwiftPackageReference "HdWalletKit.Swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/horizontalsystems/HdWalletKit.Swift.git";
@@ -541,30 +534,37 @@
 /* Begin XCSwiftPackageProductDependency section */
 		0A1555B62C6B9168005D599C /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0A1555B92C6B91B9005D599C /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0A6BA27C2C46B5FC0015461A /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0A897BA92B0CBDAA009F2468 /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0A897BAC2B0CBE35009F2468 /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0AC051422C6B94C60083C052 /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0AF01C3F2B0BE2B000242C4E /* IcpKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 0AC051412C6B94C60083C052 /* XCRemoteSwiftPackageReference "IcpKit" */;
 			productName = IcpKit;
 		};
 		0AF01C482B0C9E6100242C4E /* HdWalletKit */ = {

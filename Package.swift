@@ -100,7 +100,7 @@ let package = Package(
         ),
         .testTarget(
             name: "DABIntegrationTests",
-            dependencies: ["IcpKit", "DAB"]
+            dependencies: ["Candid", "IcpKit", "DAB"]
         ),
     ],
     swiftLanguageModes: [.v6]

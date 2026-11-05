@@ -34,12 +34,6 @@ struct MiniWebView: UIViewRepresentable {
     }
 }
 
-//struct MiniWebView_Previews: PreviewProvider {
-//    static var previews: some View {
-//        MiniWebView(url: PreviewModels.mockUrl)
-//    }
-//}
-
 private class WDelegate: NSObject, WKNavigationDelegate {
     let url: URL
     let onError: Binding<Bool>

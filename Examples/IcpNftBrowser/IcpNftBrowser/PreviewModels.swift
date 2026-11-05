@@ -46,11 +46,8 @@ private func buildFakeToken(_ name: String) -> ICPToken {
         name: name,
         decimals: 8,
         symbol: name,
-        description: "This the \(name) token",
-        totalSupply: 100000,
         verified: false,
         logo: PreviewModels.mockSvgUrl,
-        website: "https://www.bity.com"
     )
 }
 
@@ -59,9 +56,8 @@ private func buildFakeNftList(_ collection: ICPNftCollection) -> [ICPNftDetails]
         standard: collection.standard,
         index: .number($0),
         name: "#\($0)",
-        url: PreviewModels.mockUrl,
+        imageUrl: PreviewModels.mockUrl,
         metadata: nil,
-        operator: nil,
         canister: collection.canister
     ) }
 }

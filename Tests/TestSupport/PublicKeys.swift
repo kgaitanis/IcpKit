@@ -14,3 +14,13 @@ enum PublicKeys {
 
 let devWallet1 = try! SimplePrincipal(privateKey: Data(), uncompressedPublicKey: PublicKeys.devWallet1)
 let devWallet1Account = ICPAccount.mainAccount(of: devWallet1.principal)
+/// Dummy signer for offline transports that do not verify signatures.
+struct MockDevWallet1Signer: ICPSigningPrincipal {
+    var principal: ICPPrincipal { devWallet1.principal }
+    var rawPublicKey: Data { PublicKeys.devWallet1 }
+
+    func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data {
+        Data(repeating: 0, count: 64)
+    }
+}
+
