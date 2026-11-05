@@ -1,0 +1,47 @@
+{
+    "configurations": [
+        {
+            "id": "3E15783F-4E5A-48AB-ADDF-E3725CEB3E7B",
+            "name": "Default",
+            "options": {}
+        }
+    ],
+    "defaultOptions": {
+        "codeCoverage": true
+    },
+    "testTargets": [
+        {
+            "parallelizable": true,
+            "target": {
+                "containerPath": "container:",
+                "identifier": "IcpKitTests",
+                "name": "IcpKitTests"
+            }
+        },
+        {
+            "parallelizable": true,
+            "target": {
+                "containerPath": "container:",
+                "identifier": "CandidTests",
+                "name": "CandidTests"
+            }
+        },
+        {
+            "parallelizable": true,
+            "target": {
+                "containerPath": "container:",
+                "identifier": "CodeGeneratorTests",
+                "name": "CodeGeneratorTests"
+            }
+        },
+        {
+            "parallelizable": true,
+            "target": {
+                "containerPath": "container:",
+                "identifier": "DABTests",
+                "name": "DABTests"
+            }
+        }
+    ],
+    "version": 1
+}

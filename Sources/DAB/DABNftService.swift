@@ -14,8 +14,8 @@ public final class DABNftService: @unchecked Sendable {
     
     private var cachedCollections: [ICPNftCollection]?
     
-    public init() { 
-        client = ICPRequestClient()
+    public init(_ client: ICPRequestClient = ICPRequestClient()) {
+        self.client = client
         service = DABNft.Service(DABService.nftRegistry, client: client)
     }
     

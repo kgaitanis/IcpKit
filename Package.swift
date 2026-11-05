@@ -98,6 +98,10 @@ let package = Package(
             name: "DABTests",
             dependencies: ["Candid", "IcpKit", "DAB", "TestSupport", "PotentCodables"]
         ),
+        .testTarget(
+            name: "DABIntegrationTests",
+            dependencies: ["IcpKit", "DAB"]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

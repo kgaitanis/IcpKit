@@ -26,7 +26,8 @@ jobs:
           - name: Run tests
             run: |
               xcodebuild test \
-                -scheme IcpKit-Package \
+                -workspace IcpKit.xcworkspace \
+                -scheme IcpKit-CI \
                 -destination 'platform=macOS' \
                 -enableCodeCoverage YES \
                 -parallel-testing-enabled YES
@@ -55,7 +56,8 @@ jobs:
           - name: Run tests
             run: |
               xcodebuild test \
-                -scheme IcpKit-Package \
+                -workspace IcpKit.xcworkspace \
+                -scheme IcpKit-CI \
                 -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
                 -enableCodeCoverage YES \
                 -parallel-testing-enabled YES

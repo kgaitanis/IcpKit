@@ -91,6 +91,34 @@ bash compile_rust_ios.sh
 Commit the complete regenerated XCFramework alongside source changes before tagging
 a release. The script is a maintainer tool and is never run during package installation.
 
+## Running tests
+
+Open `IcpKit.xcworkspace` and select one of the shared schemes:
+
+- `IcpKit-CI` runs the deterministic `IcpKitTests`, `CandidTests`,
+  `CodeGeneratorTests`, and `DABTests` targets. GitHub Actions uses this scheme
+  on macOS and iOS Simulator.
+- `IcpKit-Integration` runs only `DABIntegrationTests`, which queries live
+  canisters and may fail when external services are unavailable. Its read-only
+  checks cover token and NFT registry data, oracle pagination compatibility,
+  ICP ledger metadata, and the ICP index. Tests run serially with a two-minute
+  limit per test; no funded wallet or signing keys are needed.
+
+Each scheme has a checked-in test plan under `TestPlans/`. Run them from the
+command line with:
+
+```sh
+xcodebuild test -workspace IcpKit.xcworkspace -scheme IcpKit-CI \
+    -destination 'platform=macOS'
+
+xcodebuild test -workspace IcpKit.xcworkspace -scheme IcpKit-Integration \
+    -destination 'platform=macOS'
+```
+
+The generated `IcpKit-Package` scheme and plain `swift test` include all test
+targets, including live integration tests. Use `IcpKit-CI` for an offline test
+run. When adding a test target, add it to the appropriate shared test plan.
+
 ## What does it do?
 
 IcpKit will take care of all the encoding, serialisation and cryptography required to communicate with ICP allowing developers to focus on the real functionality of their app and bootstrapping their development cycle.
