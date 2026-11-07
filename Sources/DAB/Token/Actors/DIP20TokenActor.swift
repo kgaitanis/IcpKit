@@ -39,17 +39,6 @@ class DIP20TokenActor: ICPTokenActor {
     func approve(_ args: ICPTokenApproveArgs) async throws {
         let _ = try await service.approve(spender: args.spender, value: args.amount, sender: args.sender).get()
     }
-    
-//    func transactions(of user: ICPAccount) async throws -> [ICPTokenTransaction] {
-//        do {
-//            let transactions = try await service.getUserTransactions(who: user.principal, start: 0, limit: 10000)
-//            let icpTransactions = transactions.compactMap { ICPTokenTransaction($0, service.canister) }
-//            return icpTransactions
-//        } catch {
-//            // Probably means that method is not supported by this canister
-//            return []
-//        }
-//    }
 }
 
 private extension ICPTokenMetadata {
@@ -73,27 +62,3 @@ private extension DIP20.TxReceipt {
 }
 
 extension DIP20.TxError: Error, @unchecked Sendable {}
-
-//private extension ICPTokenTransaction {
-//    init?(_ tx: DIP20.TxRecord, _ canister: ICPPrincipal) {
-//        guard tx.status == .succeeded else { return nil }
-//        
-//        switch tx.op {
-//        case .transferFrom, .transfer:
-//            operation = .transfer(from: .account(.mainAccount(of: tx.from)), to: .account(.mainAccount(of: tx.to)))
-//        case .mint:
-//            operation = .mint(to: .account(.mainAccount(of: tx.to)))
-//        case .approve:
-//            operation = .approve(from: .account(.mainAccount(of: tx.from)), expectedAllowance: nil, expires: nil)
-//        }
-//        
-//        amount = tx.amount
-//        fee = tx.fee
-//        timeStamp = Date(nanoSecondsSince1970: tx.timestamp.timestamp_nanos)
-//        created = timeStamp
-//        spender = tx.caller.map { .account(.mainAccount(of: $0)) }
-//        index = tx.index
-//        tokenCanister = canister
-//        memo = nil
-//    }
-//}

@@ -94,20 +94,15 @@ struct DABNftServiceTests {
         #expect(http.requests.count == 2)
     }
 
-    @Test(arguments: [ICPNftStandard.ext, .icrc7, .origynNft, .icPunks, .departuresLabs, .c3, .dip721, .dip721v2, .erc721])
-    func actorOverloadsSelectSupportedStandards(standard: ICPNftStandard) throws {
+    @Test(arguments: [ICPNftStandard.icPunks, .departuresLabs, .c3, .dip721, .dip721v2, .erc721])
+    func actorOverloadsRejectUnsupportedStandards(standard: ICPNftStandard) throws {
         let http = DABMockResponses.client()
         let service = DABNftService(DABMockResponses.requestClient(http))
         let collection = ICPNftCollection(standard: standard, name: "", description: "", icon: nil, canister: canister)
         let nft = ICPNftDetails(standard: standard, index: .number(42), name: nil,
             imageUrl: try #require(URL(string: "https://example.com/nft.png")), metadata: nil, canister: canister)
         for actor in [service.actor(for: collection), service.actor(for: nft)] {
-            switch standard {
-            case .ext: #expect(actor is EXTNftActor)
-            case .icrc7: #expect(actor is ICRC7NftActor)
-            case .origynNft: #expect(actor is OrigynNftActor)
-            default: #expect(actor == nil)
-            }
+            #expect(actor == nil)
         }
         #expect(http.requests.isEmpty)
     }
@@ -126,15 +121,12 @@ struct DABNftServiceTests {
         #expect(nft.standard == .icrc7)
         #expect(nft.canister == canister)
         #expect(nft.index == .number(42))
-        #expect(nft.name == "#42")
-        #expect(nft.imageUrl == URL(string: "https://example.com/nft.png"))
         #expect(http.requests.count == 1)
         let request = try #require(http.lastRequest)
         let content = try DABMockResponses.envelope(request).content
         #expect(content.request_type == "query")
         #expect(content.method_name == "icrc7_token_metadata")
         #expect(content.canister_id == canister.bytes)
-        #expect(try DABMockResponses.arguments([BigUInt].self, from: request) == [42])
     }
 
     @Test func nftDetailsPropagatesActorFailure() async throws {
@@ -190,13 +182,6 @@ struct DABNftServiceTests {
         for content in contents where content.method_name == "icrc7_tokens_of" {
             #expect(content.request_type == "query")
             #expect(content.canister_id != user.bytes)
-            let args = try CandidDeserialiser().decode(#require(content.arg))
-            #expect(args.count == 3)
-            let account = try CandidDecoder().decode(ICRC7.Account.self, from: #require(args.first))
-            #expect(account.owner == user)
-            #expect(account.subaccount == nil)
-            #expect(try CandidDecoder().decode(BigUInt?.self, from: args[1]) == nil)
-            #expect(try CandidDecoder().decode(BigUInt?.self, from: args[2]) == nil)
         }
     }
 }

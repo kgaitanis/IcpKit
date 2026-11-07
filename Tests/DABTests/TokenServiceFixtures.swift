@@ -64,6 +64,66 @@ struct DABTokenFixtures {
 
 }
 
+enum ICRC1IndexFixtures {
+    static func historyReply(_ transactions: [Index.TransactionWithId]) throws -> Data {
+        // Supply complete optional types, including absent operations, as the canister does.
+        // Swift's encoder cannot infer record types from nil optional values in a mixed vector.
+        let accountType = try CandidParser().parseSingleType("record { owner : principal; subaccount : opt blob }")
+        let sampleAccount = Index.Account(owner: ICPPrincipal("2vxsx-fae"), subaccount: nil)
+        func account(_ value: Index.Account) -> CandidValue {
+            .record(["owner": .principal(value.owner.bytes), "subaccount": CandidValue(value.subaccount)])
+        }
+        func optionalAccount(_ value: Index.Account?) -> CandidValue {
+            .option(accountType, value.map(account))
+        }
+        func burn(_ value: Index.Burn) -> CandidValue {
+            .record(["from": account(value.from), "memo": CandidValue(value.memo),
+                     "created_at_time": CandidValue(value.created_at_time), "amount": .natural(value.amount),
+                     "spender": optionalAccount(value.spender)])
+        }
+        func mint(_ value: Index.Mint) -> CandidValue {
+            .record(["to": account(value.to), "memo": CandidValue(value.memo),
+                     "created_at_time": CandidValue(value.created_at_time), "amount": .natural(value.amount)])
+        }
+        func approve(_ value: Index.Approve) -> CandidValue {
+            .record(["fee": CandidValue(value.fee), "from": account(value.from), "memo": CandidValue(value.memo),
+                     "created_at_time": CandidValue(value.created_at_time), "amount": .natural(value.amount),
+                     "expected_allowance": CandidValue(value.expected_allowance),
+                     "expires_at": CandidValue(value.expires_at), "spender": account(value.spender)])
+        }
+        func transfer(_ value: Index.Transfer) -> CandidValue {
+            .record(["to": account(value.to), "fee": CandidValue(value.fee), "from": account(value.from),
+                     "memo": CandidValue(value.memo), "created_at_time": CandidValue(value.created_at_time),
+                     "amount": .natural(value.amount), "spender": optionalAccount(value.spender)])
+        }
+        let burnType = burn(.init(from: sampleAccount, memo: nil, created_at_time: nil, amount: 0, spender: nil)).candidType
+        let mintType = mint(.init(to: sampleAccount, memo: nil, created_at_time: nil, amount: 0)).candidType
+        let approveType = approve(.init(fee: nil, from: sampleAccount, memo: nil, created_at_time: nil,
+            amount: 0, expected_allowance: nil, expires_at: nil, spender: sampleAccount)).candidType
+        let transferType = transfer(.init(to: sampleAccount, fee: nil, from: sampleAccount, memo: nil,
+            created_at_time: nil, amount: 0, spender: nil)).candidType
+        func wireTransaction(_ item: Index.TransactionWithId) -> CandidValue {
+            let value = item.transaction
+            return .record(["id": .natural(item.id), "transaction": .record([
+                "kind": .text(value.kind), "timestamp": .natural64(value.timestamp),
+                "burn": .option(burnType, value.burn.map(burn)),
+                "mint": .option(mintType, value.mint.map(mint)),
+                "approve": .option(approveType, value.approve.map(approve)),
+                "transfer": .option(transferType, value.transfer.map(transfer))
+            ])])
+        }
+        let itemType = wireTransaction(.init(id: 0, transaction: .init(burn: nil, kind: "unknown", mint: nil,
+            approve: nil, timestamp: 0, transfer: nil))).candidType
+        let history: CandidValue = .record([
+            "balance": .natural(1000), "oldest_tx_id": .option(.natural),
+            "transactions": .vector(try CandidVector(itemType, transactions.map(wireTransaction)))
+        ])
+        let result = CandidValue.variant(.init("Ok", history))
+        return CandidSerialiser().encode([result])
+    }
+
+}
+
 struct OracleTokenFixtures {
     func token(ledger: String = "aaaaa-aa", category: String = "Known", name: String = "Test Token",
                        logo: String? = "https://example.com/token.png", index: String? = nil) throws -> CandidValue {
