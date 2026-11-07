@@ -91,6 +91,34 @@ bash compile_rust_ios.sh
 Commit the complete regenerated XCFramework alongside source changes before tagging
 a release. The script is a maintainer tool and is never run during package installation.
 
+## Running tests
+
+Open `IcpKit.xcworkspace` and select one of the shared schemes:
+
+- `IcpKit-CI` runs the deterministic `IcpKitTests`, `CandidTests`,
+  `CodeGeneratorTests`, and `DABTests` targets. GitHub Actions uses this scheme
+  on macOS and iOS Simulator.
+- `IcpKit-Integration` runs only `DABIntegrationTests`, which queries live
+  canisters and may fail when external services are unavailable. Its read-only
+  checks cover token and NFT registry data, oracle pagination compatibility,
+  ICP ledger metadata, and the ICP index. Tests run serially with a two-minute
+  limit per test; no funded wallet or signing keys are needed.
+
+Each scheme has a checked-in test plan under `TestPlans/`. Run them from the
+command line with:
+
+```sh
+xcodebuild test -workspace IcpKit.xcworkspace -scheme IcpKit-CI \
+    -destination 'platform=macOS'
+
+xcodebuild test -workspace IcpKit.xcworkspace -scheme IcpKit-Integration \
+    -destination 'platform=macOS'
+```
+
+The generated `IcpKit-Package` scheme and plain `swift test` include all test
+targets, including live integration tests. Use `IcpKit-CI` for an offline test
+run. When adding a test target, add it to the appropriate shared test plan.
+
 ## What does it do?
 
 IcpKit will take care of all the encoding, serialisation and cryptography required to communicate with ICP allowing developers to focus on the real functionality of their app and bootstrapping their development cycle.
@@ -461,6 +489,49 @@ let result = try await function.callMethod(12345, client)
 ### How can I create a Principal?
 #### Starting from a seed
 We recommend using the [HdWalletKit.Swift](https://github.com/horizontalsystems/HdWalletKit.Swift) from HorizontalSystems in order to derive the public/private Key Pair from the seed. The ICP derivation path is `m/44'/223'/0'/0/0`
+
+Add the `HdWalletKit` product to your app to derive a key pair from mnemonic words.
+This example uses the `SimpleSigningPrincipal` implementation shown below:
+
+```swift
+import Foundation
+import HdWalletKit
+import IcpKit
+
+enum MnemonicIdentityError: Error {
+    case invalidMnemonic
+}
+
+extension SimpleSigningPrincipal {
+    static func fromMnemonic(_ words: [String]) throws -> SimpleSigningPrincipal {
+        guard let seed = HdWalletKit.Mnemonic.seed(mnemonic: words) else {
+            throw MnemonicIdentityError.invalidMnemonic
+        }
+
+        // ICP derivation path: m/44'/223'/0'/0/0
+        let privateKey = try HDPrivateKey(
+            seed: seed,
+            xPrivKey: HDExtendedKeyVersion.xprv.rawValue
+        )
+            .derived(at: 44, hardened: true)
+            .derived(at: 223, hardened: true)
+            .derived(at: 0, hardened: true)
+            .derived(at: 0, hardened: false)
+            .derived(at: 0, hardened: false)
+        let publicKey = privateKey.publicKey(compressed: false)
+
+        return try SimpleSigningPrincipal(
+            publicKey: publicKey.raw,
+            privateKey: privateKey.raw
+        )
+    }
+}
+```
+
+Pass your mnemonic words as a `[String]` to
+`try SimpleSigningPrincipal.fromMnemonic(words)`. Create its main account with
+`ICPAccount.mainAccount(of: identity.principal)`, where `identity` is the returned
+signing principal.
 
 #### Starting from a public/private Key Pair
 

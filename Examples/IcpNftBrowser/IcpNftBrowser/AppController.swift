@@ -51,9 +51,9 @@ class AppController: ObservableObject {
         myNFTs = nil
         Task {
             try await withThrowingTaskGroup(of: Balance.self) { group in
-                group.addTask { .nfts(try await self.nftService.holdings(principal)) }
-                group.addTask { .tokens(try await self.tokenService.balanceOf(principal)) }
-                
+                group.addTask { .nfts(try await self.nftService.holdings(principal).flatMap { $0.nfts }) }
+                group.addTask { .tokens(try await self.tokenService.balance(of: .mainAccount(of: principal))) }
+
                 for try await result in group {
                     switch result {
                     case .nfts(let nfts): DispatchQueue.main.async { self.myNFTs = nfts }

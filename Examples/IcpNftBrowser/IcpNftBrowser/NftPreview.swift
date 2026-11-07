@@ -13,7 +13,7 @@ struct NftPreview: View {
     
     var body: some View {
         Card(
-            image: nft.url,
+            image: nft.imageUrl,
             title: nft.name,
             description: nft.index.description,
             tag: nil

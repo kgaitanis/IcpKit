@@ -3,7 +3,7 @@ import Candid
 import IcpKit
 import PotentCBOR
 import Testing
-import TestSupport
+@testable import TestSupport
 
 /// Wire fixtures run the real generated services and request client, including update polling.
 enum DABMockResponses {

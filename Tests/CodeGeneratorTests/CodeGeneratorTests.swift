@@ -5,39 +5,34 @@
 //  Created by Konstantinos Gaitanis on 25.07.24.
 //
 
-import XCTest
+import Foundation
 import Testing
 import Candid
 @testable import CodeGenerator
 
-final class CodeGeneratorTests: XCTestCase {
-    func testTypeDidFiles() async throws {
-        let testFiles: [String] = ["LedgerCanister", "ICRC7", "GoldNFT", "TestImports"]
-        for file in testFiles {
-            let did = file + ".did"
-            let interface = try await CandidParser().parseInterfaceDescription(BundleDidProvider(main: did))
-            let generated = try CandidCodeGenerator().generateSwiftCode(for: interface, nameSpace: file)
-            let swiftPath = Bundle.module.url(forResource: did, withExtension: "generated_swift")!
-            let swiftFile = try String(contentsOf: swiftPath)
-            XCTAssertEqual(generated, swiftFile)
-        }
+struct CodeGeneratorTests {
+    @Test(arguments: ["LedgerCanister", "ICRC7", "GoldNFT", "TestImports"])
+    func `Type DID files`(file: String) async throws {
+        let did = file + ".did"
+        let interface = try await CandidParser().parseInterfaceDescription(BundleDidProvider(main: did))
+        let generated = try CandidCodeGenerator().generateSwiftCode(for: interface, nameSpace: file)
+        let swiftPath = try #require(Bundle.module.url(forResource: did, withExtension: "generated_swift"))
+        let swiftFile = try String(contentsOf: swiftPath, encoding: .utf8)
+        #expect(generated == swiftFile)
     }
-    
-    func testValueDidFiles() throws {
-        let valueDidFiles = ["EVMProviders"]
-        for valueDidFile in valueDidFiles {
-            let path = Bundle.module.url(forResource: valueDidFile, withExtension: "did")!
-            let didFile = try String(contentsOf: path)
-            let parsed = try CandidParser().parseValue(didFile)
-            let generated = try CandidCodeGenerator().generateSwiftCode(for: parsed, valueName: valueDidFile)
-            let swiftPath = Bundle.module.url(forResource: valueDidFile, withExtension: "did.generated_swift")!
-            let swiftFile = try String(contentsOf: swiftPath)
-            XCTAssertEqual(generated, swiftFile)
-        }
+
+    @Test(arguments: ["EVMProviders"])
+    func `Value DID files`(file: String) throws {
+        let path = try #require(Bundle.module.url(forResource: file, withExtension: "did"))
+        let didFile = try String(contentsOf: path, encoding: .utf8)
+        let parsed = try CandidParser().parseValue(didFile)
+        let generated = try CandidCodeGenerator().generateSwiftCode(for: parsed, valueName: file)
+        let swiftPath = try #require(Bundle.module.url(forResource: file, withExtension: "did.generated_swift"))
+        let swiftFile = try String(contentsOf: swiftPath, encoding: .utf8)
+        #expect(generated == swiftFile)
     }
-    
-    func testGenerateValue() throws {
-        let testVectors: [(CandidValue, String)] = [
+
+    private static let valueTestVectors: [(CandidValue, String)] = [
             (.integer8(2), "let cValue: Int8 = 2"),
             (try! .vector([.integer8(1), .integer8(2), .integer8(3)]), "let cValue: [Int8] = [\n\t1,\n\t2,\n\t3,\n]\n"),
             (.record(["a": .integer(3), "b": .option(.blob(Data.fromHex("DEADBEEF")!))]), "struct UnnamedType0: Codable {\n\tlet a: BigInt\n\tlet b: Data?\n}\n\nlet cValue: UnnamedType0 = .init(\n\ta: 3,\n\tb: Data.fromHex(\"deadbeef\")!\n)"),
@@ -113,14 +108,15 @@ let cValue: UnnamedType0 = .c(bool: true, int8: 7)
             (try! .function([], [.vector(.bool)], query: true, "aaaaa-aa", "foo"), "let cValue: ICPQueryNoArgs<[Bool]> = .init(\"aaaaa-aa\", \"foo\")"),
             (try! .function([.vector(.bool)], [], query: true, "aaaaa-aa", "foo"), "let cValue: ICPQueryNoResult<[Bool]> = .init(\"aaaaa-aa\", \"foo\")"),
             (try! .function([.vector(.bool)], [.vector(.bool)], query: true, "aaaaa-aa", "foo"), "let cValue: ICPQuery<[Bool], [Bool]> = .init(\"aaaaa-aa\", \"foo\")"),
-        ]
-        for (input, expected) in testVectors {
-            let generated = try CandidCodeGenerator(.init(generateHeader: false)).generateSwiftCode(for: input, valueName: "cValue")
-            XCTAssertEqual(generated, expected)
-        }
+    ]
+
+    @Test(arguments: valueTestVectors)
+    func `Generate value`(input: CandidValue, expected: String) throws {
+        let generated = try CandidCodeGenerator(.init(generateHeader: false)).generateSwiftCode(for: input, valueName: "cValue")
+        #expect(generated == expected)
     }
     
-    func testIcrc7() async throws {
+    @Test func icrc7() async throws {
         // GoldNFT io7gn-vyaaa-aaaak-qcbiq-cai
         let service = try ICRC7.Service("io7gn-vyaaa-aaaak-qcbiq-cai")
         let collectionMetadata = try await service.icrc7_collection_metadata()
@@ -129,7 +125,9 @@ let cValue: UnnamedType0 = .c(bool: true, int8: 7)
         }
         print("------------")
         let tokens = try await service.icrc7_tokens(prev: nil, take: nil)
-        let tokenMetadata = try await service.icrc7_token_metadata(token_ids: tokens).first!!
+        let metadataResponse = try await service.icrc7_token_metadata(token_ids: tokens)
+        let firstMetadata = try #require(metadataResponse.first)
+        let tokenMetadata = try #require(firstMetadata)
         for metadata in tokenMetadata {
             print(metadata._0)
             print(metadata._1)
@@ -153,7 +151,7 @@ private class BundleDidProvider: CandidInterfaceDefinitionProvider {
     }
     
     private func getBundle(_ name: String) throws -> String {
-        let path = Bundle.module.url(forResource: name, withExtension: nil)!
+        let path = try #require(Bundle.module.url(forResource: name, withExtension: nil))
         let didFile = try String(contentsOf: path)
         return didFile
     }

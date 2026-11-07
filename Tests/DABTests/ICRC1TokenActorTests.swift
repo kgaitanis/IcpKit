@@ -9,6 +9,86 @@ import TestSupport
 struct ICRC1TokenActorTests {
     private let canister = ICPPrincipal("aaaaa-aa")
 
+    @Test func stringInitializerUsesCanisterAndClient() async throws {
+        let http = DABMockResponses.client(queries: ["icrc1_fee": try DABMockResponses.candid(BigUInt(123))])
+        let canisterText: String = "aaaaa-aa"
+        let actor = try ICRC1TokenActor(canisterText, DABMockResponses.requestClient(http))
+
+        #expect(actor.standard == .icrc1)
+        #expect(try await actor.fee() == 123)
+        try assertNoArgumentQuery(http, method: "icrc1_fee")
+    }
+
+    @Test(arguments: ["", "Test Token", "Jeton café 🪙"])
+    func nameReturnsLedgerName(name: String) async throws {
+        // Explicit text also preserves empty strings in the wire fixture.
+        let reply = CandidSerialiser().encode([.text(name)])
+        let http = DABMockResponses.client(queries: ["icrc1_name": reply])
+        let service = ICRC1.Service(canister, client: DABMockResponses.requestClient(http))
+
+        #expect(try await service.icrc1_name() == name)
+        try assertNoArgumentQuery(http, method: "icrc1_name")
+    }
+
+    @Test(arguments: ["", "TST", "€"])
+    func symbolReturnsLedgerSymbol(symbol: String) async throws {
+        // Explicit text also preserves empty strings in the wire fixture.
+        let reply = CandidSerialiser().encode([.text(symbol)])
+        let http = DABMockResponses.client(queries: ["icrc1_symbol": reply])
+        let service = ICRC1.Service(canister, client: DABMockResponses.requestClient(http))
+
+        #expect(try await service.icrc1_symbol() == symbol)
+        try assertNoArgumentQuery(http, method: "icrc1_symbol")
+    }
+
+    @Test(arguments: [UInt8(0), 8, UInt8.max])
+    func decimalsReturnsNat8(decimals: UInt8) async throws {
+        let http = DABMockResponses.client(queries: ["icrc1_decimals": try DABMockResponses.candid(decimals)])
+        let service = ICRC1.Service(canister, client: DABMockResponses.requestClient(http))
+
+        #expect(try await service.icrc1_decimals() == decimals)
+        try assertNoArgumentQuery(http, method: "icrc1_decimals")
+    }
+
+    @Test(arguments: [false, true])
+    func mintingAccountPreservesOwnerAndSubaccount(customSubaccount: Bool) async throws {
+        let account = ICRC1.Account(owner: DABTestSigner().principal,
+                                    subaccount: customSubaccount ? Data(repeating: 7, count: 32) : nil)
+        let http = DABMockResponses.client(queries: [
+            "icrc1_minting_account": try DABMockResponses.candid(Optional(account))
+        ])
+        let service = ICRC1.Service(canister, client: DABMockResponses.requestClient(http))
+
+        let result = try #require(await service.icrc1_minting_account())
+        #expect(result.owner == account.owner)
+        #expect(result.subaccount == account.subaccount)
+        try assertNoArgumentQuery(http, method: "icrc1_minting_account")
+    }
+
+    @Test func mintingAccountCanBeAbsent() async throws {
+        // Keep the account's wire type even when the optional value is absent.
+        let accountType = try CandidParser().parseSingleType("record { owner : principal; subaccount : opt blob }")
+        let reply = CandidSerialiser().encode([.option(accountType)])
+        let http = DABMockResponses.client(queries: ["icrc1_minting_account": reply])
+        let service = ICRC1.Service(canister, client: DABMockResponses.requestClient(http))
+
+        #expect(try await service.icrc1_minting_account() == nil)
+        try assertNoArgumentQuery(http, method: "icrc1_minting_account")
+    }
+
+    private func assertNoArgumentQuery(_ http: MockHttpClient, method: String,
+                                       sourceLocation: SourceLocation = #_sourceLocation) throws {
+        #expect(http.requests.count == 1, sourceLocation: sourceLocation)
+        let request = try #require(http.lastRequest, sourceLocation: sourceLocation)
+        let content = try DABMockResponses.envelope(request).content
+        #expect(content.request_type == "query", sourceLocation: sourceLocation)
+        #expect(content.method_name == method, sourceLocation: sourceLocation)
+        #expect(content.canister_id == canister.bytes, sourceLocation: sourceLocation)
+        #expect(request.url.path.hasSuffix("/aaaaa-aa/query"), sourceLocation: sourceLocation)
+        let arguments = try #require(content.arg, sourceLocation: sourceLocation)
+        #expect(try CandidDeserialiser().decode(arguments).isEmpty, sourceLocation: sourceLocation)
+    }
+
     @Test(arguments: [false, true])
     func balancePreservesAccountAndLargeAmount(customSubaccount: Bool) async throws {
         let account = try ICPAccount(principal: DABTestSigner().principal,

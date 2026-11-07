@@ -14,7 +14,7 @@ struct NftDetails: View {
     var body: some View {
         ScrollView {
             VStack {                
-                RemoteImage(nft.url)
+                RemoteImage(nft.imageUrl)
                 .frame(minHeight: 150)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 nft.name.map { Text($0)

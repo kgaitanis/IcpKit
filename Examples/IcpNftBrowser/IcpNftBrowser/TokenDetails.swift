@@ -23,11 +23,8 @@ struct TokenDetails: View {
                     .font(.title3)
                 ItemProperty(label: "Symbol", value: token.symbol)
                 ItemProperty(label: "Decimals", value: String(token.decimals))
-                ItemProperty(label: "Total supply", value: String(token.totalSupply))
-                ItemProperty(label: "Description", value: token.description)
                 ItemProperty(label: "Verified", value: String(token.verified))
                 ItemProperty(label: "Canister", value: token.canister.string)
-                token.website.map { ItemProperty(label: "Website", value: $0.absoluteString) }
             }
         }
         .safeAreaPadding()

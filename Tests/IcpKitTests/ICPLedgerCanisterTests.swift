@@ -9,45 +9,16 @@ import Foundation
 import Testing
 import PotentCBOR
 @testable import IcpKit
+@testable import TestSupport
 import Candid
 
-struct ICPIntegrationTests {
-    private let client = ICPRequestClient()
-    
+// Offline ledger mapping and error coverage; live checks are in DABIntegrationTests.
+struct ICPLedgerCanisterTests {
     @Test func accountBalance() async throws {
         let mock = try LedgerMockClient(query: CandidEncoder().encode(LedgerCanister.Tokens(e8s: 123456)))
-        #expect(try await ICPLedgerCanister.accountBalance(of: mainAccount1, mock.client) == 123456)
-        let balance = try await ICPLedgerCanister.accountBalance(of: mainAccount1, client)
-        print("Test Wallet 1 - Main Account Balance: \(balance)")
+        #expect(try await ICPLedgerCanister.accountBalance(of: devWallet1Account, mock.client) == 123456)
     }
 
-    @Test func readState() async throws {
-        let response = try await client.readState(paths: ["time"], effectiveCanister: ICPSystemCanisters.ledger)
-        guard let timeLeb128 = response.rawValueForPath(endingWith: "time") else {
-            Issue.record("Unexpected response")
-            return
-        }
-        let timeSince1970s: Int = try Leb128.decodeUnsigned(timeLeb128) / 1_000_000_000
-        let time = Date(timeIntervalSince1970: TimeInterval(timeSince1970s))
-        #expect(Date.now > time)
-        #expect(time.addingTimeInterval(10) > Date.now)
-    }
-    
-//    @Test func readStateSigned() async throws {
-//        let response = try await client.readState(paths: ["time"], effectiveCanister: ICPSystemCanisters.ledger, sender: signingPrincipal1)
-//        print(response)
-//    }
-//   
-//    @Test func transfer() async throws {
-//        let block = try await ICPLedgerCanister.transfer(
-//            from: mainAccount1,
-//            to: mainAccount1.accountId.hex,
-//            amount: 10000,
-//            signingPrincipal: signingPrincipal1,
-//            client)
-//        print("Transaction sent in block \(block)")
-//    }
-    
     @Test func queryBlock() async throws {
         let from = Data([1]), to = Data([2]), spender = Data([3])
         let operations: [LedgerCanister.Operation] = [
@@ -95,19 +66,6 @@ struct ICPIntegrationTests {
                 guard case ICPLedgerCanisterError.blockNotFound = error else { return false }; return true
             }
         }
-        let block = try await ICPLedgerCanister.queryBlock(index: 13309698, client)
-        #expect(block.timestamp == 1723103842536019792)
-        #expect(block.transaction.createdNanos == 1723103842536019792)
-        #expect(block.transaction.memo == 0)
-        #expect(block.parentHash == Data.fromHex("7f944c23b83cc7d5457b6503f95430cb751f8cfe561374470e672c70fb850342"))
-        guard case .transfer(let from, let to, let amount, let fee, _) = block.transaction.operation else {
-            Issue.record("operation is not a transfer")
-            return
-        }
-        #expect(from == Data.fromHex("07537100d2fb357209a2283d6c5cb588ef7ee09db32fb7cc6f6241e44b155e4c"))
-        #expect(to == Data.fromHex("57271f92125bdfd4fe0605f2e22c3ad549fc27cf2e85bae080645a5b516154ec"))
-        #expect(amount == 190612587)
-        #expect(fee == 10000)
     }
     
     @Test func generatedLedger() async throws {
@@ -118,7 +76,7 @@ struct ICPIntegrationTests {
         for result in results {
             let mock = try LedgerMockClient(query: CandidEncoder().encode(result))
             do {
-                let index = try await ICPLedgerCanister.transfer(from: mainAccount1, to: mainAccount1.accountId.hex, amount: 55, signingPrincipal: LedgerMockSigner(), fee: 10, memo: 77, mock.client)
+                let index = try await ICPLedgerCanister.transfer(from: devWallet1Account, to: devWallet1Account.accountId.hex, amount: 55, signingPrincipal: MockDevWallet1Signer(), fee: 10, memo: 77, mock.client)
                 guard case .Ok(let expected) = result else { Issue.record("Expected transfer error"); continue }
                 #expect(index == expected)
             } catch ICPLedgerCanisterError.transferFailed(let error) {
@@ -133,28 +91,12 @@ struct ICPIntegrationTests {
             }
         }
         await #expect {
-            _ = try await ICPLedgerCanister.transfer(from: mainAccount1, to: "invalid", amount: 1, signingPrincipal: LedgerMockSigner(), archivesMock.client)
+            _ = try await ICPLedgerCanister.transfer(from: devWallet1Account, to: "invalid", amount: 1, signingPrincipal: MockDevWallet1Signer(), archivesMock.client)
         } throws: { error in
             guard case ICPLedgerCanisterError.invalidAddress = error else { return false }; return true
         }
-        let nBlocks: UInt64 = 3
-        let ledger = LedgerCanister.Service(ICPSystemCanisters.ledger, client: client)
-        let blocks = try await ledger.query_blocks(.init(start: 11268933, length: nBlocks))
-        #expect(blocks.archived_blocks.map { $0.length }.reduce(0, +) + UInt64(blocks.blocks.count) == nBlocks)
-        for archive in blocks.archived_blocks {
-            let archiveResponse = try await archive.callback.callMethod(.init(start: archive.start, length: archive.length), client)
-            print(archiveResponse)
-            guard case .Ok = archiveResponse else { Issue.record("Unexpected response"); return }
-        }
     }
 }
-
-private let testWallet1PublicKey: Data = Data.fromHex("046acf4c93dd993cd736420302eb70da254532ec3179250a21eec4ce823ff289aaa382cb19576b2c6447db09cb45926ebd69ce288b1804580fe62c343d3252ec6e")!
-private let testWallet2PublicKey: Data = Data.fromHex("04723cdc9bd653014a501159fb89dcc6e2cf03f242955b987b53dd6193815d8a9d4a4f5b902b2819d270c28f0710ad96fea5b13f5fe30c6e244bf2941ebf4ec36e")!
-
-private let principal1 = try! ICPCryptography.selfAuthenticatingPrincipal(uncompressedPublicKey: testWallet1PublicKey)
-private let mainAccount1 = ICPAccount.mainAccount(of: principal1)
-
 
 // Every transport operation stays in memory, including calls that represent transfers.
 private final class LedgerMockClient: HttpClient, Sendable {
@@ -180,8 +122,8 @@ private final class LedgerMockClient: HttpClient, Sendable {
             #expect(args.amount.e8s == 55)
             #expect(args.fee.e8s == 10)
             #expect(args.memo == 77)
-            #expect(args.to == mainAccount1.accountId)
-            #expect(args.from_subaccount == mainAccount1.subAccountId)
+            #expect(args.to == devWallet1Account.accountId)
+            #expect(args.from_subaccount == devWallet1Account.subAccountId)
             #expect(args.created_at_time != nil)
             return HttpResponse(statusCode: 202)
         }
@@ -198,12 +140,6 @@ private final class LedgerMockClient: HttpClient, Sendable {
         let result = content["method_name"]?.utf8StringValue == "archive_blocks" ? try #require(archive) : query
         return HttpResponse(data: try CBORSerialization.data(from: .map(["status": "replied", "reply": .map(["arg": .byteString(result)])])), statusCode: 200)
     }
-}
-
-private struct LedgerMockSigner: ICPSigningPrincipal {
-    var principal: ICPPrincipal { principal1 }
-    var rawPublicKey: Data { testWallet1PublicKey }
-    func sign(_ message: Data, domain: ICPDomainSeparator) async throws -> Data { Data(repeating: 0, count: 64) }
 }
 
 private func ledgerResponse(blocks: [LedgerCanister.Block], archived: Bool = false) throws -> CandidValue {

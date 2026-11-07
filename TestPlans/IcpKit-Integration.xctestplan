@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "id": "42E78843-9D93-4C8B-8F7D-C49916722AFB",
+            "name": "Default",
+            "options": {}
+        }
+    ],
+    "defaultOptions": {
+        "codeCoverage": false
+    },
+    "testTargets": [
+        {
+            "parallelizable": false,
+            "target": {
+                "containerPath": "container:",
+                "identifier": "DABIntegrationTests",
+                "name": "DABIntegrationTests"
+            }
+        }
+    ],
+    "version": 1
+}
